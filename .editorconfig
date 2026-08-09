@@ -1,0 +1,30 @@
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 4
+max_line_length = 120
+
+[*.{yml,yaml,json,md}]
+indent_size = 2
+
+[*.md]
+trim_trailing_whitespace = false
+
+[*.cs]
+# Allman braces (opening brace on its own line)
+csharp_new_line_before_open_brace = all
+csharp_new_line_before_else = true
+csharp_new_line_before_catch = true
+csharp_new_line_before_finally = true
+# Always use braces, even for single-line blocks
+csharp_prefer_braces = true:suggestion
+# using order: project first, then System/BCL, then the rest
+dotnet_sort_system_directives_first = false
+csharp_using_directive_placement = outside_namespace:suggestion
+# Prefer file-scoped namespaces (namespace X;)
+csharp_style_namespace_declarations = file_scoped:suggestion

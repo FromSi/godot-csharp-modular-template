@@ -1,0 +1,44 @@
+# Godot
+.godot/
+.import/
+/android/
+export.cfg
+export_credentials.cfg
+*.translation
+.nomedia
+
+# Mono / .NET
+.mono/
+data_*/
+mono_crash.*.json
+bin/
+obj/
+
+# Rider
+.idea/
+
+# VS Code
+.vscode/
+
+# Visual Studio
+.vs/
+*.suo
+*.user
+*.userosscache
+
+# Build artifacts
+[Dd]ebug/
+[Rr]elease/
+[Bb]in/
+[Oo]bj/
+*.dll
+*.exe
+BenchmarkDotNet.Artifacts/
+
+# NuGet
+*.nuget.props
+*.nuget.targets
+
+# OS
+.DS_Store
+Thumbs.db
