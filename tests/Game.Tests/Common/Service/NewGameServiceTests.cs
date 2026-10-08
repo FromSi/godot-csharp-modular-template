@@ -1,7 +1,6 @@
 using Game.Game.Common.Domain;
 using Game.Game.Common.Repository;
 using Game.Game.Common.Service;
-using Game.Game.Example.Domain;
 using NUnit.Framework;
 
 namespace Game.Tests.Common.Service;
@@ -10,18 +9,21 @@ namespace Game.Tests.Common.Service;
 public class NewGameServiceTests
 {
     [Test]
-    public void Create_ResetsRepositoriesToFreshState()
+    public void Create_ResetsEverySlotToItsFreshState()
     {
-        var idRepository = new SingleRepository<IdState>();
-        idRepository.Update(new IdState { Counter = 99 });
-        var noteRepository = new SingleRepository<NoteState>();
-        noteRepository.Update(new NoteState { Text = "old" });
+        var usedRepository = new SingleRepository<IdState>();
+        usedRepository.Update(new IdState { Counter = 99 });
+        var emptyRepository = new SingleRepository<IdState>();
 
-        var service = new NewGameService(idRepository, noteRepository);
+        var service = new NewGameService(
+        [
+            new StateSlot<IdState>(usedRepository, () => new IdState()),
+            new StateSlot<IdState>(emptyRepository, () => new IdState { Counter = 10 }),
+        ]);
 
         service.Create();
 
-        Assert.That(idRepository.GetOne().Counter, Is.EqualTo(1));
-        Assert.That(noteRepository.GetOne().Text, Is.EqualTo(""));
+        Assert.That(usedRepository.GetOne().Counter, Is.EqualTo(1));
+        Assert.That(emptyRepository.GetOne().Counter, Is.EqualTo(10));
     }
 }

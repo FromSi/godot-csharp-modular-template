@@ -6,10 +6,11 @@ using Godot;
 namespace Game.Game.Level;
 
 /// <summary>
-/// A level screen: it is an <see cref="ILevelObserver"/>, so it shows or hides itself in
-/// reaction to level changes, and it hosts a module's UI built via a factory. It also
-/// listens to that UI as an <see cref="IExampleUIObserver"/> — navigation lives here, not
-/// in the UI. Copy this shape for every screen in your game.
+/// The game screen: an <see cref="ILevelObserver"/> that shows itself on the Main level and
+/// hosts a module's UI built via a factory. <c>GameLevel</c> creates it only after Continue /
+/// New Game (so the UI subscribes to the loaded / fresh states) and frees it on the way back to
+/// the menu. It also listens to the UI as an <see cref="IExampleUIObserver"/> — navigation lives
+/// here, not in the UI. Copy this shape for your game screens.
 /// </summary>
 public partial class ExampleLevel : Control, ILevelObserver, IExampleUIObserver
 {
@@ -36,14 +37,15 @@ public partial class ExampleLevel : Control, ILevelObserver, IExampleUIObserver
     {
         if (_gameLevel.CurrentLevel == Enum.Level.Main && @event.IsActionPressed("ui_cancel"))
         {
-            _gameLevel.OpenLevel(Enum.Level.Quit);
+            GetViewport().SetInputAsHandled();
+            _gameLevel.ReturnToMenu();
         }
     }
 
-    // IExampleUIObserver — the UI asked to quit; navigation is decided here.
-    public void OnQuitRequested()
+    // IExampleUIObserver — the UI asked for the menu; navigation is decided here.
+    public void OnMenuRequested()
     {
-        _gameLevel.OpenLevel(Enum.Level.Quit);
+        _gameLevel.ReturnToMenu();
     }
 
     // ILevelObserver — show this screen only on the Main level.

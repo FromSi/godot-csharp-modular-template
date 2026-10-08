@@ -14,7 +14,7 @@ this component brings them to life.
 A simple enum of all game states. Add a screen — add a value.
 
 ```csharp
-public enum Level { Main, Quit }
+public enum Level { MainMenu, Main, Quit }
 ```
 
 ### 2. The composition root — [GameLevel.cs](GameLevel.cs)
@@ -23,8 +23,13 @@ The root `Node` of the main scene ([../../../level/game_level.tscn](../../../lev
 - **in the constructor** it creates all of the `Common` infrastructure and the
   modules (repositories, services, factories) — the one and only place the game is
   "assembled";
-- **in `_Ready`** it creates the screens, subscribes them to level changes and adds
-  them to the tree.
+- **in `_Ready`** it creates the start screens (main menu, quit), subscribes them to
+  level changes and opens `MainMenu`;
+- **`ContinueGame()` / `StartNewGame()`** load the save or reset every state slot, then
+  build the game screen and open `Main` — so its UIs subscribe to the loaded / fresh
+  states; **`ReturnToMenu()`** (Esc) saves, opens `MainMenu` and frees the game screen (it
+  is rebuilt on the next entry); **`SaveGame()`** writes the save — also from
+  `_Notification` when the window is closed during play.
 
 Switching happens via `OpenLevel(...)` / `OpenPreviousLevel()`: they change
 `CurrentLevel` and notify observers.
@@ -40,8 +45,8 @@ public void OpenLevel(Enum.Level level)
 ```
 
 ### 3. The root contract — [IGameLevel.cs](IGameLevel.cs)
-The interface through which screens "talk" to the root: they read the current level
-and ask to switch. Screens depend on the interface, not on the concrete `GameLevel` —
+The interface through which screens "talk" to the root: they read the current level,
+ask to switch, and enter / leave the game (`ContinueGame`, `StartNewGame`, `ReturnToMenu`). Screens depend on the interface, not on the concrete `GameLevel` —
 which makes them easier to test and reuse.
 
 ### 4. The observer — [Observer/ILevelObserver.cs](Observer/ILevelObserver.cs)
@@ -53,16 +58,63 @@ void OnLevelOppened(Enum.Level newLevel, Enum.Level oldLevel);
 ```
 
 ### 5. Level screens
-A screen is a `Node` (usually a `Control`) that implements `ILevelObserver`. The
-template has two:
+A screen is a `Node` (usually a `Control`) that implements `ILevelObserver`. Two
+lifetimes:
 
-- **[QuitLevel.cs](QuitLevel.cs)** — a screen with no UI: when switching to `Quit` it
-  closes the game. An example of a "logical" level.
-- **[ExampleLevel.cs](ExampleLevel.cs)** — a screen with UI: shows/hides itself based
-  on the current level, hosts the [Example](../Example/README.md) module's screen via
-  its factory, and **listens to that UI** (`IExampleUIObserver`) to handle navigation
-  intents like Quit. This is the UI → Level direction: the UI reports intent, the level
-  decides where to go. An example of a "visual" level.
+- **Session screens** — created once in `_Ready`, live until exit:
+  - **[QuitLevel.cs](QuitLevel.cs)** — no UI: when switching to `Quit` it closes the game.
+    An example of a "logical" level.
+  - **[MainMenuLevel.cs](MainMenuLevel.cs)** — hosts the [MainMenu](../MainMenu/README.md)
+    UI (Continue — inactive without a save — / New Game / Quit) and turns its intents into
+    `ContinueGame()` / `StartNewGame()` / `OpenLevel(Quit)`.
+- **Game screen** — created by `GameLevel.EnterGame()` after the states were loaded or
+  reset, freed by `ReturnToMenu()`:
+  - **[ExampleLevel.cs](ExampleLevel.cs)** — shows itself on `Main`, hosts the
+    [Example](../Example/README.md) module's UI via its factory, and **listens to that UI**
+    (`IExampleUIObserver`) to handle navigation (Menu); Esc does the same. This is the
+    UI → Level direction: the UI reports intent, the level decides where to go.
+
+Why the game screen is rebuilt: `SaveService.Load` / `NewGameService.Create` replace the
+state objects. A UI that subscribed in `_Ready` stays subscribed to the objects of *its*
+session; building the screen after the load and freeing it on exit keeps that true without
+any re-subscribe code. Never load or reset while the game screen exists.
+
+### 6. Adapters — `Adapter/` (create on first use)
+Modules don't know each other. When one needs another's data, it declares an interface
+in its own `Service` layer, and `Level` implements it over the other module's service:
+
+```csharp
+// Shop/Service/IShopCatalog.cs — the consumer's view, in its own types
+public interface IShopCatalog
+{
+    IReadOnlyList<ShopItem> GetItems();
+}
+
+// Level/Adapter/InventoryShopCatalog.cs — the only place that knows both modules
+public class InventoryShopCatalog : IShopCatalog
+{
+    private readonly IInventoryService _inventoryService;
+
+    public InventoryShopCatalog(IInventoryService inventoryService)
+    {
+        _inventoryService = inventoryService;
+    }
+
+    public IReadOnlyList<ShopItem> GetItems()
+    {
+        return _inventoryService.GetAll()
+            .Select(item => new ShopItem { Id = item.Id, Name = item.Name, Price = item.Price })
+            .ToList();
+    }
+}
+
+// GameLevel constructor
+_shopService = new ShopService(_shopRepository, new InventoryShopCatalog(_inventoryService));
+```
+
+The consumer's tests mock `IShopCatalog`; the adapter itself is engine-free and can be
+tested in `tests/Game.Tests/Level/Adapter/` when the mapping has logic. The same shape works
+for callbacks the other way (`IShopPurchaseListener` implemented over another module's service).
 
 ## Initialization order
 
@@ -70,8 +122,9 @@ Wiring follows a strict order so dependencies always exist before they're used.
 
 Per module, in the `GameLevel` **constructor**: `State → Repository → Service → Factory`
 (create the state, put it in a repository, hand the repository to the service, hand the
-service to the factory). Central services (`SaveService`, `NewGameService`) are built
-after the repositories they own.
+service to the factory). Repositories start empty: the `slots` list (one `StateSlot<T>` per
+persistent state) is built after them, then `SaveService` / `NewGameService` over it, and
+`NewGameService.Create()` fills every repository. Factories that need `SaveService` come last.
 
 Per screen, in `GameLevel._Ready` (and inside a screen's own `_Ready`):
 `create → subscribe observers → AddChild`. Subscribe **before** adding to the tree so no
@@ -87,16 +140,21 @@ Godot launches game_level.tscn
 GameLevel (constructor)  → assembles services/modules/factories
         │
         ▼
-GameLevel._Ready()       → creates screens, subscribes them as ILevelObserver
-        │                  and calls OpenLevel(Main)
+GameLevel._Ready()       → creates the menu + quit screens, OpenLevel(MainMenu)
+        │
         ▼
-screen presses button/Esc → _gameLevel.OpenLevel(Quit)
+Continue / New Game      → Load() or NewGameService.Create(), build ExampleLevel, OpenLevel(Main)
+        │
+        ▼
+Esc / Menu               → save, OpenLevel(MainMenu), free ExampleLevel · window close → save
+Menu Quit                → OpenLevel(Quit)
         │
         ▼
 GameLevel.Notify(...)    → OnLevelOppened on every observer
         │
-        ├─ ExampleLevel: Visible = (newLevel == Main)
-        └─ QuitLevel:    if (newLevel == Quit) GetTree().Quit()
+        ├─ MainMenuLevel: Visible = (newLevel == MainMenu), refresh Continue
+        ├─ ExampleLevel:  Visible = (newLevel == Main)
+        └─ QuitLevel:     if (newLevel == Quit) GetTree().Quit()
 ```
 
 ## Adding your own screen
@@ -105,7 +163,9 @@ GameLevel.Notify(...)    → OnLevelOppened on every observer
 2. Create a screen class (a `Control` subclass implementing `ILevelObserver`); take
    `IGameLevel` in the constructor and, if it has UI, the module's factory. Reference —
    [ExampleLevel.cs](ExampleLevel.cs).
-3. In `GameLevel._Ready()` create the screen, add it to `_observers` and to the tree.
+3. Session screen (menu, settings): in `GameLevel._Ready()` create it, add it to
+   `_observers` and to the tree. Game screen content (HUD, inventory): host it inside the
+   game screen built in `EnterGame()`, so it lives exactly one session.
 4. Switch to it from anywhere: `_gameLevel.OpenLevel(Enum.Level.Menu)`.
 
 > A screen is only about "when to show". The feature itself (data, logic, layout)

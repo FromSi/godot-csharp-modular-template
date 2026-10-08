@@ -10,12 +10,12 @@ public class SingleRepository<T> : ISingleRepository<T> where T : class
     {
         _state = state;
     }
-    
+
     public T GetOne()
     {
         return _state ?? throw new InvalidOperationException($"State of type {typeof(T).Name} is not initialized.");
     }
-    
+
     public void Delete()
     {
         _state = null;

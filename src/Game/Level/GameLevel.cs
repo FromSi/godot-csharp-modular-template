@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using Game.Game.Common.Domain;
 using Game.Game.Common.Repository;
 using Game.Game.Common.Service;
@@ -8,6 +7,8 @@ using Game.Game.Example.Domain;
 using Game.Game.Example.Service;
 using Game.Game.Example.UI.Factory;
 using Game.Game.Level.Observer;
+using Game.Game.MainMenu.UI.Factory;
+using System.Collections.Generic;
 using Godot;
 
 namespace Game.Game.Level;
@@ -17,29 +18,36 @@ namespace Game.Game.Level;
 /// Everything is wired here by hand: shared infrastructure from <c>Common</c>,
 /// per-module services/factories, and the level screens that observe level changes.
 ///
-/// This is the file you edit first when starting a new project on this template:
-/// register your services in the constructor, add your level screens in <see cref="_Ready"/>.
+/// The game starts on the main menu. The game screen is built when the player continues a save
+/// or starts a new game (so its UIs subscribe to the loaded / fresh states) and dropped when they
+/// return to the menu. Every persistent state is an <see cref="IStateSlot"/>: listed once, it is
+/// saved, loaded, reset on a new game and registered for JSON automatically.
 /// </summary>
 public partial class GameLevel : Node, IGameLevel
 {
-    public Enum.Level CurrentLevel { get; private set; } = Enum.Level.Main;
-    public Enum.Level PreviousLevel { get; private set; } = Enum.Level.Main;
+    public Enum.Level CurrentLevel { get; private set; } = Enum.Level.MainMenu;
+    public Enum.Level PreviousLevel { get; private set; } = Enum.Level.MainMenu;
 
     private readonly List<ILevelObserver> _observers = [];
 
     // --- Shared infrastructure (Common). Reusable across any project. ---
     private readonly IOsService _osService;
     private readonly IRandomGeneratorService _randomGeneratorService;
+    private readonly IClockService _clockService;
     private readonly IJsonConverterStateService _jsonConverterStateService;
     private readonly IJsonStateFileHandlerService _fileHandlerService;
 
     private readonly ISingleRepository<IdState> _idRepository;
     private readonly IIdService _idService;
 
-    // Central persistence & reset: own every repository that takes part in a save / new game.
+    // Central persistence & reset over every state slot.
     private const string SavePath = "user://saves/game.save";
     private readonly SaveService _saveService;
     private readonly NewGameService _newGameService;
+    private readonly MainMenuUIFactory _mainMenuUiFactory;
+
+    private CanvasLayer _canvasLayer = null!;
+    private ExampleLevel? _gameScreen;
 
     // --- Example module. A self-contained feature; delete or copy as a starting point. ---
     private readonly ISingleRepository<NoteState> _noteRepository;
@@ -54,8 +62,6 @@ public partial class GameLevel : Node, IGameLevel
         var fileSystemService = new GodotFileSystemService();
 
         _jsonConverterStateService = new JsonConverterStateService();
-        _jsonConverterStateService.Register(typeof(IdState));
-        _jsonConverterStateService.Register(typeof(NoteState));
 
         _fileHandlerService = new JsonStateFileHandlerService(
             _osService,
@@ -64,34 +70,104 @@ public partial class GameLevel : Node, IGameLevel
         );
 
         _randomGeneratorService = new RandomGeneratorService();
+        _clockService = new ClockService();
 
+        // Repositories start empty; NewGameService fills them (see the end of the constructor).
         _idRepository = new SingleRepository<IdState>();
-        _idRepository.Update(new IdState());
         _idService = new IdService(_idRepository);
 
         // Per-module wiring order: State → Repository → Service → Factory.
         _noteRepository = new SingleRepository<NoteState>();
-        _noteRepository.Update(new NoteState());
-        _noteService = new NoteService(_noteRepository, _randomGeneratorService);
+        _noteService = new NoteService(_noteRepository, _randomGeneratorService, _clockService);
 
-        _saveService = new SaveService(SavePath, _fileHandlerService, _idRepository, _noteRepository);
-        _newGameService = new NewGameService(_idRepository, _noteRepository);
+        // Everything that is saved: one slot per state (order = save file order).
+        var slots = new List<IStateSlot>
+        {
+            new StateSlot<IdState>(_idRepository, () => new IdState()),
+            new StateSlot<NoteState>(_noteRepository, () => new NoteState()),
+        };
 
-        _exampleUiFactory = new ExampleUIFactory(_noteService, _saveService, _newGameService);
+        foreach (var slot in slots)
+        {
+            _jsonConverterStateService.Register(slot.StateType);
+        }
+
+        _saveService = new SaveService(SavePath, _fileHandlerService, slots);
+        _newGameService = new NewGameService(slots);
+        _newGameService.Create();
+
+        _mainMenuUiFactory = new MainMenuUIFactory(_saveService);
+        _exampleUiFactory = new ExampleUIFactory(_noteService, _saveService);
     }
 
     public override void _Ready()
     {
-        var canvasLayer = new CanvasLayer { Layer = 99 };
-        AddChild(canvasLayer);
+        _canvasLayer = new CanvasLayer { Layer = 99 };
+        AddChild(_canvasLayer);
 
         var quitLevel = new QuitLevel(this);
         _observers.Add(quitLevel);
-        canvasLayer.AddChild(quitLevel);
+        _canvasLayer.AddChild(quitLevel);
 
-        var exampleLevel = new ExampleLevel(this, _exampleUiFactory);
-        _observers.Add(exampleLevel);
-        canvasLayer.AddChild(exampleLevel);
+        var mainMenuLevel = new MainMenuLevel(this, _mainMenuUiFactory);
+        _observers.Add(mainMenuLevel);
+        _canvasLayer.AddChild(mainMenuLevel);
+
+        OpenLevel(Enum.Level.MainMenu);
+    }
+
+    public bool ContinueGame()
+    {
+        if (!_saveService.Load())
+        {
+            return false;
+        }
+
+        EnterGame();
+
+        return true;
+    }
+
+    public void StartNewGame()
+    {
+        _newGameService.Create();
+        EnterGame();
+    }
+
+    public void SaveGame()
+    {
+        _saveService.Save();
+    }
+
+    public void ReturnToMenu()
+    {
+        SaveGame();
+        OpenLevel(Enum.Level.MainMenu);
+
+        if (_gameScreen != null)
+        {
+            _observers.Remove(_gameScreen);
+            _gameScreen.QueueFree();
+            _gameScreen = null;
+        }
+    }
+
+    // Closing the window while playing keeps the progress.
+    public override void _Notification(int what)
+    {
+        if (what == NotificationWMCloseRequest && CurrentLevel == Enum.Level.Main)
+        {
+            SaveGame();
+        }
+    }
+
+    // Built on every entry, after the states were loaded / reset, so its UIs subscribe to the
+    // current state objects (Load / New Game replace them).
+    private void EnterGame()
+    {
+        _gameScreen = new ExampleLevel(this, _exampleUiFactory);
+        _observers.Add(_gameScreen);
+        _canvasLayer.AddChild(_gameScreen);
 
         OpenLevel(Enum.Level.Main);
     }

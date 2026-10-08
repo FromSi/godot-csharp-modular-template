@@ -18,20 +18,20 @@ public class RepositoryIndex<TKey, TValue, TIndexKey> : IRepositoryIndex<TKey, T
     public void Add(TKey key, TValue value)
     {
         var indexKey = _keySelector(value);
-        
+
         if (!_index.TryGetValue(indexKey, out var bucket))
         {
             bucket = new Dictionary<TKey, TValue>();
             _index[indexKey] = bucket;
         }
-        
+
         bucket[key] = value;
     }
 
     public void Remove(TKey key, TValue value)
     {
         var indexKey = _keySelector(value);
-        
+
         if (_index.TryGetValue(indexKey, out var bucket))
         {
             bucket.Remove(key);

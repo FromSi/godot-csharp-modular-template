@@ -1,49 +1,74 @@
 ---
 name: add-persistable-state
-description: Add a POCO state that can be saved and loaded, including the mandatory JsonConverter registration. Use when adding save data, persistent settings/progress, or any serializable state.
+description: Add a POCO state that can be saved and loaded (and reset on a new game). Use when adding save data, persistent settings/progress, or any serializable state.
 ---
 
 # Add a persistable state
 
-Two common bugs: a state that silently won't (de)serialize because its type was never
-registered, and a state that never gets saved because it wasn't added to the central
-`SaveService`. This skill prevents both. Read the FileHandler and SaveService sections
-in [src/Game/Common/README.md](../../../src/Game/Common/README.md) and use
-[SaveService.cs](../../../src/Game/Common/Service/SaveService.cs) as the reference.
+Persistence goes through **state slots**: one `StateSlot<T>` per saved state, listed once
+in `GameLevel` ([src/Game/Level/GameLevel.cs](../../../src/Game/Level/GameLevel.cs)). That
+single line makes the state saved, loaded, reset on "New Game" and registered for JSON —
+nothing to touch in `Common` (`SaveService` / `NewGameService` work on slots only). Background:
+the SaveService section in [src/Game/Common/README.md](../../../src/Game/Common/README.md).
 
 Steps:
 
 1. **Define the state** as a plain POCO in `<Module>/Domain/<Name>State.cs`
-   (public get/set properties, sane defaults, no logic, no Godot).
-   If it lives in a `CollectionRepository`, give it an `int Id` (indexes/deserialization rely on it).
-
-2. **Put it in a repository** (`SingleRepository<T>` or `CollectionRepository<TKey,TValue>`),
-   created and seeded in [GameLevel](../../../src/Game/Level/GameLevel.cs).
-
-3. **Register the type** in `GameLevel` next to the others:
+   (public get/set properties, sane defaults, no logic, no Godot):
    ```csharp
-   _jsonConverterStateService.Register(typeof(<Name>State));
-   ```
-   Without this line the serializer skips it. This is the step people forget — do not skip it.
+   public class InventoryState
+   {
+       public List<InventoryItem> Items { get; set; } = [];
+   }
 
-4. **Add the repository to [SaveService](../../../src/Game/Common/Service/SaveService.cs).**
-   Saving is centralized — do NOT write file I/O in the module service. Take the new
-   repository in the `SaveService` constructor and add it to both methods, keeping the
-   list order identical:
+   public class InventoryItem
+   {
+       public int Id { get; set; }              // from IIdService
+       public int ProductId { get; set; }       // reference by id …
+       public string ProductName { get; set; } = "";  // … plus a display snapshot
+       public decimal ProductPrice { get; set; }
+   }
+   ```
+   - **The state itself has no `Id`** — it's a singleton identified by its type.
+   - **Every entity inside it gets an `int Id`** (`IIdService.Next()`); never reuse it as a
+     display number — add a separate `Number` field if players see one.
+   - **References are ids + snapshots**, never nested objects of another state: store
+     `ProductId` (nullable `int?` if optional) and the name/price shown at that moment.
+     Checks look the entity up by id and compare the snapshot (see "Entities and ids" in
+     [src/Game/README.md](../../../src/Game/README.md)).
+   - Observable? Extend `ObservableState<I<Name>StateObserver>` (see `add-observer`) — the
+     observer list is private and not serialized.
+
+2. **Create its repository** in the `GameLevel` constructor — empty, don't seed it there:
    ```csharp
-   // Save():  single state → GetOne(), collection → GetAll()
-   var data = new List<object?> { _idRepository.GetOne(), ..., _<name>Repository.GetOne() };
-   // Load():  single → Delete()+Update((T)data[i]!);  collection → DeleteAll()+loop Update(key,(T)value!)
+   _inventoryRepository = new SingleRepository<InventoryState>();
    ```
-   Bump the `data is not { Count: N }` guard in `Load` to the new slot count.
-   Pass the repository into `SaveService` from [GameLevel](../../../src/Game/Level/GameLevel.cs).
-   Also reset it in [NewGameService](../../../src/Game/Common/Service/NewGameService.cs)
-   (`Delete()`+`Update(new ...)` for single, `DeleteAll()` for collections) so "new game" clears it too.
+   `StateSlot<T>` works over `ISingleRepository<T>`, so keep a collection as a list inside one
+   state (as above) rather than in a `CollectionRepository`.
 
-5. **Custom field types** (not handled by System.Text.Json) need a converter like
-   `Vector2JsonConverter` registered in `JsonConverterStateService`.
+3. **Add a slot** to the `slots` list in `GameLevel`:
+   ```csharp
+   new StateSlot<InventoryState>(_inventoryRepository, () => new InventoryState()),
+   // or with starting content: InventorySeed.Create  (Service/InventorySeed.cs, a static factory)
+   ```
+   The factory builds the fresh state for a new game. `NewGameService.Create()` runs once at
+   the end of the constructor, so the repository is filled before anything reads it.
+   Slot order = save file order; a save whose slots don't match (count or types) is rejected
+   as a whole, so an old save can't half-load — Continue simply does nothing. Once players
+   have saves, append new slots and consider versioning `SavePath`.
 
-6. **Observable state?** If the state is observable, remember `SaveService.Load` replaces
-   the object — subscribers must re-subscribe after a load (see `add-observer`).
+4. **Custom field types** (not handled by System.Text.Json, e.g. `Vector2`) need a converter
+   like `Vector2JsonConverter` added in `JsonConverterStateService`. Dictionaries with enum or
+   int keys, nullables and `DateTime` work out of the box — the round-trip test proves it.
 
-7. **Test** with a mocked `IJsonStateFileHandlerService` (see `SaveServiceTests` and `add-tests`), then run `verify`.
+5. **Observable state?** Load / New Game replace state objects. The game screen is built only
+   after Continue / New Game, so UIs that subscribe in `_Ready` get the right objects;
+   don't add load/reset buttons to the game screen (see `add-observer`).
+
+6. **Test**: add the type to the `Register` list and a filled instance to the round trip in
+   [JsonConverterStateServiceTests](../../../tests/Game.Tests/Common/Service/JsonConverterStateServiceTests.cs)
+   (real JSON — catches types that silently don't (de)serialize), and assert the fields
+   that matter after `Deserialize`. Then run `verify`.
+
+Don't: register types by hand, add repositories to `SaveService`/`NewGameService`, or write
+file I/O in a module service.

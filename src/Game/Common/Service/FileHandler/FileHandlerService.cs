@@ -1,5 +1,5 @@
-using System.IO;
 using Game.Game.Common.Enum;
+using System.IO;
 using FileAccess = Godot.FileAccess;
 
 namespace Game.Game.Common.Service.FileHandler;
@@ -16,7 +16,7 @@ public abstract class FileHandlerService
         OsService = osService;
         FileSystemService = fileSystemService;
     }
-    
+
     protected abstract void WriteContent(IFileAccess file, string content);
     protected abstract string? ReadContent(IFileAccess file);
 
@@ -84,8 +84,8 @@ public abstract class FileHandlerService
 
     private FileError CheckAndCreateDir(string filePath, bool create)
     {
-        var dirPath = filePath.Contains("://") 
-            ? filePath[..filePath.LastIndexOf('/')] 
+        var dirPath = filePath.Contains("://")
+            ? filePath[..filePath.LastIndexOf('/')]
             : Path.GetDirectoryName(filePath) ?? "";
 
         if (dirPath == "" || FileSystemService.DirExists(dirPath))

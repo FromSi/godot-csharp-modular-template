@@ -4,7 +4,7 @@ namespace Game.Game.Common.Service.FileHandler;
 
 public class BinFileHandlerService : FileHandlerService
 {
-    public BinFileHandlerService(IOsService osService, IFileSystemService fileSystemService) 
+    public BinFileHandlerService(IOsService osService, IFileSystemService fileSystemService)
         : base(osService, fileSystemService) { }
 
     protected override void WriteContent(IFileAccess file, string content)

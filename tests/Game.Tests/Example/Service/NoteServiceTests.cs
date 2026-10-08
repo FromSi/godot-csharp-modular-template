@@ -11,8 +11,11 @@ namespace Game.Tests.Example.Service;
 [TestFixture]
 public class NoteServiceTests
 {
+    private static readonly DateTime Now = new(2026, 1, 1, 12, 0, 0);
+
     private ISingleRepository<NoteState> _repository = null!;
     private Mock<IRandomGeneratorService> _random = null!;
+    private Mock<IClockService> _clock = null!;
     private NoteService _service = null!;
 
     [SetUp]
@@ -22,16 +25,21 @@ public class NoteServiceTests
         _repository.Update(new NoteState());
 
         _random = new Mock<IRandomGeneratorService>();
+        _clock = new Mock<IClockService>();
+        _clock.Setup(c => c.Now).Returns(Now);
 
-        _service = new NoteService(_repository, _random.Object);
+        _service = new NoteService(_repository, _random.Object, _clock.Object);
     }
 
     [Test]
-    public void SetText_UpdatesState()
+    public void SetText_UpdatesTextAndStampsClockTime()
     {
+        Assert.That(_service.GetChangedAt(), Is.Null);
+
         _service.SetText("hello");
 
         Assert.That(_service.Get(), Is.EqualTo("hello"));
+        Assert.That(_service.GetChangedAt(), Is.EqualTo(Now));
     }
 
     [Test]
@@ -50,6 +58,18 @@ public class NoteServiceTests
 
         _service.SetText("hi");
 
-        observer.Verify(o => o.OnTextChanged("hi"), Times.Once);
+        observer.Verify(o => o.OnTextChanged("hi", Now), Times.Once);
+    }
+
+    [Test]
+    public void Unsubscribe_StopsNotifications()
+    {
+        var observer = new Mock<INoteStateObserver>();
+        _service.Subscribe(observer.Object);
+        _service.Unsubscribe(observer.Object);
+
+        _service.SetText("hi");
+
+        observer.Verify(o => o.OnTextChanged(It.IsAny<string>(), It.IsAny<DateTime>()), Times.Never);
     }
 }

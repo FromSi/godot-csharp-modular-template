@@ -108,7 +108,7 @@ public class JsonConverterStateService : IJsonConverterStateService
                 {
                     var obj = JsonSerializer.Deserialize(d.GetRawText(), type, _options);
                     if (obj == null) continue;
-                    
+
                     var idProperty = type.GetProperty("Id");
                     if (idProperty != null)
                     {

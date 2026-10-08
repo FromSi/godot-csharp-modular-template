@@ -1,51 +1,41 @@
-using System.Collections.Generic;
-using Game.Game.Common.Domain;
-using Game.Game.Common.Repository;
 using Game.Game.Common.Service.FileHandler;
-using Game.Game.Example.Domain;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace Game.Game.Common.Service;
 
 /// <summary>
-/// Central persistence: gathers every repository that takes part in a save and writes
-/// them to a single file (and restores them back). Module services do NOT do file I/O
-/// themselves — they own in-memory state, this service owns saving.
-///
-/// The list order in <see cref="Save"/> must match the positional casts in
-/// <see cref="Load"/>. When you add a persistable module, add its repository here
-/// (single state → <c>GetOne()</c>, collection → <c>GetAll()</c>) and register its
-/// type in the JsonConverter (in <c>GameLevel</c>). This is the one place in
-/// <c>Common</c> that references concrete module states — the trade-off for a single,
-/// explicit save file.
+/// Central persistence: writes every <see cref="IStateSlot"/> to a single file and restores them.
+/// Module services do NOT do file I/O themselves — they own in-memory state, this service owns
+/// saving. The slot list (built in <c>GameLevel</c>) defines what is saved and in which order;
+/// a load is applied only if the file has exactly one state of the right type per slot, so a
+/// broken or outdated save never leaves the game half-loaded.
 /// </summary>
 public class SaveService
 {
     private readonly string _savePath;
     private readonly IJsonStateFileHandlerService _fileHandlerService;
-
-    private readonly ISingleRepository<IdState> _idRepository;
-    private readonly ISingleRepository<NoteState> _noteRepository;
+    private readonly IReadOnlyList<IStateSlot> _slots;
 
     public SaveService(
         string savePath,
         IJsonStateFileHandlerService fileHandlerService,
-        ISingleRepository<IdState> idRepository,
-        ISingleRepository<NoteState> noteRepository
+        IReadOnlyList<IStateSlot> slots
     )
     {
         _savePath = savePath;
         _fileHandlerService = fileHandlerService;
-        _idRepository = idRepository;
-        _noteRepository = noteRepository;
+        _slots = slots;
+    }
+
+    public bool HasSave()
+    {
+        return _fileHandlerService.Exists(_savePath);
     }
 
     public void Save()
     {
-        var data = new List<object?>
-        {
-            _idRepository.GetOne(),
-            _noteRepository.GetOne(),
-        };
+        var data = _slots.Select(slot => (object?)slot.Current()).ToList();
 
         _fileHandlerService.Store(data, _savePath);
     }
@@ -53,17 +43,18 @@ public class SaveService
     public bool Load()
     {
         var data = _fileHandlerService.Load(_savePath);
+        var matches = data.Count == _slots.Count
+            && data.Zip(_slots).All(pair => pair.Second.StateType.IsInstanceOfType(pair.First));
 
-        if (data is not { Count: 2 })
+        if (!matches)
         {
             return false;
         }
 
-        _idRepository.Delete();
-        _idRepository.Update((IdState)data[0]!);
-
-        _noteRepository.Delete();
-        _noteRepository.Update((NoteState)data[1]!);
+        for (var i = 0; i < _slots.Count; i++)
+        {
+            _slots[i].Restore(data[i]!);
+        }
 
         return true;
     }

@@ -1,6 +1,6 @@
-using System.Collections.Generic;
 using Game.Game.Common.Enum;
 using Game.Game.Common.Service.JsonConverter;
+using System.Collections.Generic;
 
 namespace Game.Game.Common.Service.FileHandler;
 
@@ -31,6 +31,11 @@ public class JsonStateFileHandlerService : FileHandlerService, IJsonStateFileHan
     public FileError Store(List<object?> data, string path, bool createDir = true)
     {
         return base.Store(_jsonConverterStateService.Serialize(data), path, createDir);
+    }
+
+    public bool Exists(string path)
+    {
+        return FileSystemService.FileExists(path);
     }
 
     public new List<object?> Load(string path)

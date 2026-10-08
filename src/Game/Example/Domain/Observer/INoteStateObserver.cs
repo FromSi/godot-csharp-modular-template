@@ -1,3 +1,5 @@
+using System;
+
 namespace Game.Game.Example.Domain.Observer;
 
 /// <summary>
@@ -6,5 +8,5 @@ namespace Game.Game.Example.Domain.Observer;
 /// </summary>
 public interface INoteStateObserver
 {
-    void OnTextChanged(string text);
+    void OnTextChanged(string text, DateTime changedAt);
 }

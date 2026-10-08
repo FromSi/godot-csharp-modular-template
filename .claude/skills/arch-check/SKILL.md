@@ -16,9 +16,13 @@ Checklist:
    - `Domain` — no dependencies, no Godot.
    - `Repository` — knows State only.
    - `Service` — knows Repository (interfaces from `Common`); **no Godot**.
-   - `UI` — knows Service + State; Godot allowed here.
-   - `Level` — knows Factories; the only place wiring happens.
-   - Flag any `using Godot;` in Domain/Service/Repository.
+   - `UI` — knows Service + State + `Common/UI`; Godot allowed here.
+   - `Common/UI` — shared Godot widgets only, no game logic, no module types.
+   - `Level` — knows Factories and module Services; the only place wiring happens.
+   - Flag any `using Godot;` in Domain/Service/Repository and in `Level/Adapter/`.
+   - **No module references another module** (`using Game.Game.<OtherModule>` inside a module).
+     Cross-module data → an interface in the consumer's `Service` + an adapter in
+     `Level/Adapter/`.
 
 3. **UI in code only** — no `.tscn` for UI; the only scene is `level/game_level.tscn`. UI nodes built in C#.
 
@@ -26,10 +30,23 @@ Checklist:
 
 5. **No `virtual` methods** — extension via `abstract` or interface.
 
-6. **Persistable state** — every saved POCO is registered in `JsonConverterStateService`; states are plain POCOs.
+6. **Persistable state** — every saved POCO has a `StateSlot<T>` in `GameLevel`'s `slots` list and is
+   in the `JsonConverterStateServiceTests` round trip; states are plain POCOs; no manual
+   `Register(...)`, no module types in `Common` (incl. `SaveService`/`NewGameService`); repositories
+   are not seeded in `GameLevel` (the slot factory does that).
+   **Ids**: every entity (item inside a state) has an `int Id`, slot states themselves don't; references are an id + display snapshot, not nested
+   objects of another state; checks look up by id and compare the snapshot; `Id` isn't reused as
+   a player-visible number.
 
-7. **Tests** — engine-free `Service`/`Domain` have tests; `Common` deps are mocked.
+7. **Session lifetime** — no Load / New Game while a game UI exists; game UIs live in the
+   screen built by `GameLevel.EnterGame()`, subscribe in `_Ready`, unsubscribe in `_ExitTree`.
+   No `DateTime.Now` / `new Random()` in Service (use `IClockService` / `IRandomGeneratorService`).
 
-8. **Style** — 4 spaces (no tabs), ≤120 chars, braces on all blocks (except short `?:`), ≤3 nesting levels, `using` order project→BCL→Godot.
+8. **Tests** — engine-free `Service`/`Domain`/`Level` classes have tests; `Common` deps are mocked;
+   mutable test fields are assigned in `[SetUp]`, not inline.
+
+9. **Style** — 4 spaces (no tabs), ≤120 chars, no trailing whitespace, braces on all blocks
+   (except short `?:`), ≤3 nesting levels, `using` order project (`Game.*`) → BCL (`System.*`) →
+   third-party (`Godot`, `Moq`, `NUnit`). The `verify` skill has the line-length/whitespace commands.
 
 If everything passes, say so briefly. Otherwise list each violation with the fix.

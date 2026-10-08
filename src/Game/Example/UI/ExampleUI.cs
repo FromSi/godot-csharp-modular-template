@@ -1,9 +1,10 @@
-using System.Collections.Generic;
-using System.Linq;
 using Game.Game.Common.Service;
 using Game.Game.Example.Domain.Observer;
 using Game.Game.Example.Service;
 using Game.Game.Example.UI.Observer;
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using Godot;
 
 namespace Game.Game.Example.UI;
@@ -12,17 +13,19 @@ namespace Game.Game.Example.UI;
 /// Example screen. Demonstrates three things: the save system, the observer pattern
 /// (state → UI), and UI → Level notifications.
 ///
-/// Type a number, press <c>Random</c> to fill it, <c>Save</c> to persist, <c>Load</c>
-/// to read back and <c>New</c> to reset. Feature actions call the services directly;
-/// navigation intents (<c>Quit</c>) are raised to the level via
-/// <see cref="IExampleUIObserver"/> — the UI holds no navigation logic. The field and
-/// the "Current value" label are driven by <see cref="INoteStateObserver.OnTextChanged"/>.
+/// Type a number, press <c>Random</c> to fill it and <c>Save</c> to persist. Feature actions
+/// call the services directly; navigation intents (<c>Menu</c>) are raised to the level via
+/// <see cref="IExampleUIObserver"/> — the UI holds no navigation logic. The field and the
+/// "Current value" label (with the time of the last change) are driven by
+/// <see cref="INoteStateObserver.OnTextChanged"/>.
+///
+/// Load / New Game live in the main menu: the screen hosting this UI is created after them, so
+/// <see cref="_Ready"/> subscribes to the current state once — no re-subscribing on load.
 /// </summary>
 public partial class ExampleUI : Control, INoteStateObserver
 {
     private readonly INoteService _noteService;
     private readonly SaveService _saveService;
-    private readonly NewGameService _newGameService;
 
     // UI is the publisher here; the level subscribes. It's a Node, so it can't extend
     // Common's ObservableState<T> — a manual list, like GameLevel's ILevelObserver.
@@ -32,11 +35,10 @@ public partial class ExampleUI : Control, INoteStateObserver
     private LineEdit _input = null!;
     private Label _status = null!;
 
-    public ExampleUI(INoteService noteService, SaveService saveService, NewGameService newGameService)
+    public ExampleUI(INoteService noteService, SaveService saveService)
     {
         _noteService = noteService;
         _saveService = saveService;
-        _newGameService = newGameService;
     }
 
     public void AddObserver(IExampleUIObserver observer)
@@ -84,14 +86,19 @@ public partial class ExampleUI : Control, INoteStateObserver
 
         buttons.AddChild(MakeButton("Random", OnRandomPressed));
         buttons.AddChild(MakeButton("Save", OnSavePressed));
-        buttons.AddChild(MakeButton("Load", OnLoadPressed));
-        buttons.AddChild(MakeButton("New", OnNewPressed));
-        buttons.AddChild(MakeButton("Quit", OnQuitPressed));
+        buttons.AddChild(MakeButton("Menu", OnMenuPressed));
 
         _status = new Label { HorizontalAlignment = HorizontalAlignment.Center };
         box.AddChild(_status);
 
-        SubscribeAndRender();
+        _noteService.Subscribe(this);
+        Render(_noteService.Get(), _noteService.GetChangedAt());
+    }
+
+    // The screen is freed on the way back to the menu; don't leave a dead observer on the state.
+    public override void _ExitTree()
+    {
+        _noteService.Unsubscribe(this);
     }
 
     private static Button MakeButton(string text, System.Action onPressed)
@@ -130,47 +137,25 @@ public partial class ExampleUI : Control, INoteStateObserver
         _status.Text = "Saved";
     }
 
-    private void OnLoadPressed()
-    {
-        if (_saveService.Load())
-        {
-            // Load replaces the state object, so re-subscribe to the fresh one and re-render.
-            SubscribeAndRender();
-            _status.Text = "Loaded";
-        }
-        else
-        {
-            _status.Text = "No save found";
-        }
-    }
-
-    private void OnNewPressed()
-    {
-        _newGameService.Create();
-        // New game also replaces the state object — re-subscribe and re-render.
-        SubscribeAndRender();
-        _status.Text = "New game";
-    }
-
-    private void OnQuitPressed()
+    private void OnMenuPressed()
     {
         // Navigation is the level's job: report the intent, let it decide.
         foreach (var observer in _observers)
         {
-            observer.OnQuitRequested();
+            observer.OnMenuRequested();
         }
     }
 
     // INoteStateObserver — called by the state whenever its text changes.
-    public void OnTextChanged(string text)
+    public void OnTextChanged(string text, DateTime changedAt)
     {
-        _valueLabel.Text = $"Current value: {text}";
-        _input.Text = text; // reflect loaded/changed state in the field
+        Render(text, changedAt);
     }
 
-    private void SubscribeAndRender()
+    private void Render(string text, DateTime? changedAt)
     {
-        _noteService.Subscribe(this);
-        OnTextChanged(_noteService.Get());
+        var changed = changedAt is { } time ? $"changed at {time:HH:mm:ss}" : "never changed";
+        _valueLabel.Text = $"Current value: {text} ({changed})";
+        _input.Text = text; // reflect loaded/changed state in the field
     }
 }

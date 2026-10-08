@@ -9,13 +9,13 @@ public class CollectionRepository<TKey, TValue> : ICollectionRepository<TKey, TV
     private readonly Dictionary<TKey, TValue> _states = new();
     private readonly List<IRepositoryIndex<TKey, TValue>> _indexes = [];
 
-    public IRepositoryIndex<TKey, TValue, TIndexKey> AddIndex<TIndexKey>(Func<TValue, TIndexKey> keySelector) 
+    public IRepositoryIndex<TKey, TValue, TIndexKey> AddIndex<TIndexKey>(Func<TValue, TIndexKey> keySelector)
         where TIndexKey : notnull
     {
         var index = new RepositoryIndex<TKey, TValue, TIndexKey>(keySelector);
-        
+
         _indexes.Add(index);
-        
+
         return index;
     }
 
@@ -40,7 +40,7 @@ public class CollectionRepository<TKey, TValue> : ICollectionRepository<TKey, TV
     public void UpdateAll(Dictionary<TKey, TValue> states)
     {
         _states.Clear();
-        
+
         foreach (var index in _indexes)
         {
             index.Clear();
@@ -49,7 +49,7 @@ public class CollectionRepository<TKey, TValue> : ICollectionRepository<TKey, TV
         foreach (var (key, value) in states)
         {
             _states[key] = value;
-            
+
             foreach (var index in _indexes)
             {
                 index.Add(key, value);
@@ -60,7 +60,7 @@ public class CollectionRepository<TKey, TValue> : ICollectionRepository<TKey, TV
     public TValue? GetOne(TKey key) {
         return _states.GetValueOrDefault(key);
     }
-    
+
     public Dictionary<TKey, TValue> GetAll() {
         return new Dictionary<TKey, TValue>(_states);
     }
@@ -68,7 +68,7 @@ public class CollectionRepository<TKey, TValue> : ICollectionRepository<TKey, TV
     public void DeleteAll()
     {
         _states.Clear();
-        
+
         foreach (var index in _indexes)
         {
             index.Clear();
