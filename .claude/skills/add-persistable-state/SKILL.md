@@ -57,6 +57,11 @@ Steps:
    as a whole, so an old save can't half-load — Continue simply does nothing. Once players
    have saves, append new slots and consider versioning `SavePath`.
 
+   **Must survive New Game** (player settings, unlocks across runs)? Don't add it to the game
+   `slots`; give it its own `SaveService` over its own slot and path, loaded once in the
+   constructor (`Load()` or `slot.Reset()`), and let the module save through a store interface
+   implemented in `Level/Adapter/` — exactly like `SettingsState` / `SettingsFileStore`.
+
 4. **Custom field types** (not handled by System.Text.Json, e.g. `Vector2`) need a converter
    like `Vector2JsonConverter` added in `JsonConverterStateService`. Dictionaries with enum or
    int keys, nullables and `DateTime` work out of the box — the round-trip test proves it.
@@ -69,6 +74,10 @@ Steps:
    [JsonConverterStateServiceTests](../../../tests/Game.Tests/Common/Service/JsonConverterStateServiceTests.cs)
    (real JSON — catches types that silently don't (de)serialize), and assert the fields
    that matter after `Deserialize`. Then run `verify`.
+
+Saving can fail (`SaveService.Save()` returns `false`; the old file stays intact). Game saves
+go only through `GameLevel.SaveGame()`, which reports the failure to the player — don't call
+`SaveService.Save()` from module UI.
 
 Don't: register types by hand, add repositories to `SaveService`/`NewGameService`, or write
 file I/O in a module service.

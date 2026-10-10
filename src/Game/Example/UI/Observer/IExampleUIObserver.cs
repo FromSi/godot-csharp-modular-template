@@ -7,5 +7,6 @@ namespace Game.Game.Example.UI.Observer;
 /// </summary>
 public interface IExampleUIObserver
 {
+    void OnSaveRequested();
     void OnMenuRequested();
 }

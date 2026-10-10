@@ -52,11 +52,21 @@ public class SaveServiceTests
             .Callback<List<object?>, string, bool>((data, _, _) => stored = data)
             .Returns(FileError.Ok);
 
-        _service.Save();
+        Assert.That(_service.Save(), Is.True);
 
         Assert.That(stored, Has.Count.EqualTo(2));
         Assert.That(((IdState)stored![0]!).Counter, Is.EqualTo(7));
         Assert.That(((Note)stored[1]!).Text, Is.EqualTo("saved"));
+    }
+
+    [Test]
+    public void Save_IsFalseWhenTheFileIsNotWritten()
+    {
+        _fileHandler
+            .Setup(h => h.Store(It.IsAny<List<object?>>(), Path, true))
+            .Returns(FileError.AccessDenied);
+
+        Assert.That(_service.Save(), Is.False);
     }
 
     [Test]
@@ -92,10 +102,19 @@ public class SaveServiceTests
     }
 
     [Test]
-    public void HasSave_AsksTheFileHandler()
+    public void CanLoad_OnlyForAFileThatMatchesTheSlots()
     {
-        _fileHandler.Setup(h => h.Exists(Path)).Returns(true);
+        _idRepository.GetOne().Counter = 42;
 
-        Assert.That(_service.HasSave(), Is.True);
+        _fileHandler.Setup(h => h.Load(Path)).Returns([]);
+        Assert.That(_service.CanLoad(), Is.False);
+
+        _fileHandler.Setup(h => h.Load(Path)).Returns([new IdState { Counter = 1 }, new IdState()]);
+        Assert.That(_service.CanLoad(), Is.False);
+
+        _fileHandler.Setup(h => h.Load(Path)).Returns([new IdState { Counter = 1 }, new Note()]);
+        Assert.That(_service.CanLoad(), Is.True);
+
+        Assert.That(_idRepository.GetOne().Counter, Is.EqualTo(42));
     }
 }

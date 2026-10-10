@@ -7,9 +7,10 @@ using Godot;
 namespace Game.Game.MainMenu.UI;
 
 /// <summary>
-/// Start menu: a centered column with the title and Continue / New Game / Quit. Continue is
-/// inactive without a save. Choices are raised to the level via <see cref="IMainMenuUIObserver"/>;
-/// the UI itself neither loads nor navigates.
+/// Start menu: a centered column with the title and Continue / New Game / Settings / Quit.
+/// Continue is inactive without a save that loads; a failed save is reported under the buttons.
+/// Choices are raised to the level via <see cref="IMainMenuUIObserver"/>; the UI itself neither
+/// loads nor navigates.
 /// </summary>
 public partial class MainMenuUI : Control
 {
@@ -17,6 +18,7 @@ public partial class MainMenuUI : Control
     private readonly List<IMainMenuUIObserver> _observers = [];
 
     private Button _continueButton = null!;
+    private Label _saveFailed = null!;
 
     public MainMenuUI(SaveService saveService)
     {
@@ -50,15 +52,31 @@ public partial class MainMenuUI : Control
         _continueButton = CreateButton("Continue", observer => observer.OnContinuePressed());
         column.AddChild(_continueButton);
         column.AddChild(CreateButton("New Game", observer => observer.OnNewGamePressed()));
+        column.AddChild(CreateButton("Settings", observer => observer.OnSettingsPressed()));
         column.AddChild(CreateButton("Quit", observer => observer.OnQuitPressed()));
+
+        _saveFailed = new Label
+        {
+            Text = "Could not save the game",
+            Modulate = new Color(1, 0.45f, 0.45f),
+            HorizontalAlignment = HorizontalAlignment.Center,
+            Visible = false,
+        };
+        column.AddChild(_saveFailed);
 
         RefreshContinue();
     }
 
-    // Continue is available once a save exists (e.g. after returning from the game).
+    // Continue is available once there is a save that loads (e.g. after returning from the game).
     public void RefreshContinue()
     {
-        _continueButton.Disabled = !_saveService.HasSave();
+        _continueButton.Disabled = !_saveService.CanLoad();
+    }
+
+    // Shown after the player left the game without saving; hidden by the next good save.
+    public void ShowSaveFailed(bool isFailed)
+    {
+        _saveFailed.Visible = isFailed;
     }
 
     private Button CreateButton(string text, Action<IMainMenuUIObserver> notify)

@@ -1,4 +1,3 @@
-using Game.Game.Common.Service;
 using Game.Game.Example.Domain.Observer;
 using Game.Game.Example.Service;
 using Game.Game.Example.UI.Observer;
@@ -14,8 +13,9 @@ namespace Game.Game.Example.UI;
 /// (state → UI), and UI → Level notifications.
 ///
 /// Type a number, press <c>Random</c> to fill it and <c>Save</c> to persist. Feature actions
-/// call the services directly; navigation intents (<c>Menu</c>) are raised to the level via
-/// <see cref="IExampleUIObserver"/> — the UI holds no navigation logic. The field and the
+/// call the services directly; saving and navigation (<c>Save</c>, <c>Menu</c>) are raised to the
+/// level via <see cref="IExampleUIObserver"/>, which reports the result back through
+/// <see cref="ShowSaveResult"/> — the UI holds no navigation or save logic. The field and the
 /// "Current value" label (with the time of the last change) are driven by
 /// <see cref="INoteStateObserver.OnTextChanged"/>.
 ///
@@ -24,8 +24,9 @@ namespace Game.Game.Example.UI;
 /// </summary>
 public partial class ExampleUI : Control, INoteStateObserver
 {
+    private static readonly Color ErrorColor = new(1, 0.45f, 0.45f);
+
     private readonly INoteService _noteService;
-    private readonly SaveService _saveService;
 
     // UI is the publisher here; the level subscribes. It's a Node, so it can't extend
     // Common's ObservableState<T> — a manual list, like GameLevel's ILevelObserver.
@@ -35,10 +36,9 @@ public partial class ExampleUI : Control, INoteStateObserver
     private LineEdit _input = null!;
     private Label _status = null!;
 
-    public ExampleUI(INoteService noteService, SaveService saveService)
+    public ExampleUI(INoteService noteService)
     {
         _noteService = noteService;
-        _saveService = saveService;
     }
 
     public void AddObserver(IExampleUIObserver observer)
@@ -133,8 +133,19 @@ public partial class ExampleUI : Control, INoteStateObserver
     private void OnSavePressed()
     {
         _noteService.SetText(_input.Text);
-        _saveService.Save();
-        _status.Text = "Saved";
+
+        foreach (var observer in _observers)
+        {
+            observer.OnSaveRequested();
+        }
+    }
+
+    // Called by the level after every save (button, Esc): "Saved", or a warning that stays until
+    // the next good save.
+    public void ShowSaveResult(bool isSaved)
+    {
+        _status.Text = isSaved ? "Saved" : "Could not save the game";
+        _status.Modulate = isSaved ? Colors.White : ErrorColor;
     }
 
     private void OnMenuPressed()

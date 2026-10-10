@@ -11,7 +11,7 @@ exist: [QuitLevel.cs](../../../src/Game/Level/QuitLevel.cs) (logical, no UI) and
 
 Ask for the level name if not given. First decide the **lifetime**:
 
-- **Session screen** (menu, settings, credits) — doesn't show game state; created once in
+- **Session screen** (menu, credits) — doesn't show game state; created once in
   `GameLevel._Ready`, lives until exit.
 - **Game screen content** (HUD, inventory, map) — shows game state; must live exactly one
   game session, because Load / New Game replace state objects. Host it inside the game
@@ -19,20 +19,20 @@ Ask for the level name if not given. First decide the **lifetime**:
 
 Then:
 
-1. **Add the enum value** in [Enum/Level.cs](../../../src/Game/Level/Enum/Level.cs) (e.g. `Settings`)
+1. **Add the enum value** in [Enum/Level.cs](../../../src/Game/Level/Enum/Level.cs) (e.g. `Credits`)
    — only if it's a separate level; a panel inside the game screen needs no value.
 
 2. **Create the screen class** `src/Game/Level/<Name>Level.cs`, namespace `Game.Game.Level`:
    ```csharp
-   public partial class SettingsLevel : Control, ILevelObserver, ISettingsUIObserver
+   public partial class CreditsLevel : Control, ILevelObserver, ICreditsUIObserver
    {
        private readonly IGameLevel _gameLevel;
-       private readonly SettingsUIFactory _settingsUiFactory;
+       private readonly CreditsUIFactory _creditsUiFactory;
 
-       public SettingsLevel(IGameLevel gameLevel, SettingsUIFactory settingsUiFactory)
+       public CreditsLevel(IGameLevel gameLevel, CreditsUIFactory creditsUiFactory)
        {
            _gameLevel = gameLevel;
-           _settingsUiFactory = settingsUiFactory;
+           _creditsUiFactory = creditsUiFactory;
 
            ProcessMode = ProcessModeEnum.Always;   // if it must react while the tree is paused
            SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
@@ -40,7 +40,7 @@ Then:
 
        public override void _Ready()
        {
-           var ui = _settingsUiFactory.Create();
+           var ui = _creditsUiFactory.Create();
            ui.AddObserver(this);   // subscribe before adding to the tree
            AddChild(ui);
        }
@@ -49,7 +49,7 @@ Then:
 
        public void OnLevelOppened(Enum.Level newLevel, Enum.Level oldLevel)
        {
-           Visible = newLevel == Enum.Level.Settings;
+           Visible = newLevel == Enum.Level.Credits;
        }
    }
    ```
@@ -59,15 +59,20 @@ Then:
 3. **Register it** in [GameLevel](../../../src/Game/Level/GameLevel.cs):
    - session screen — in `_Ready`, next to the menu:
      ```csharp
-     var settingsLevel = new SettingsLevel(this, _settingsUiFactory);
-     _observers.Add(settingsLevel);
-     _canvasLayer.AddChild(settingsLevel);
+     var creditsLevel = new CreditsLevel(this, _creditsUiFactory);
+     _observers.Add(creditsLevel);
+     _canvasLayer.AddChild(creditsLevel);
      ```
    - game screen — in `EnterGame()` the same three lines, keep the reference in a field and
-     undo them in `ReturnToMenu()` (`_observers.Remove(...)`, `QueueFree()`, field = `null`).
+     undo them in `LeaveToMenu()` (`_observers.Remove(...)`, `QueueFree()`, field = `null`).
+     It also gets `ShowSaveResult(bool)` (called by `GameLevel.SaveGame()`) and, on a failed
+     `ReturnToMenu()`, asks "Exit without saving?" → `LeaveToMenu()` (see `ExampleLevel`).
+   - an overlay over a session screen (like Settings over the menu) — create it in that
+     screen's `_Ready`, hidden, and toggle `Visible` from the intents.
 
 4. **Switch to it** with `_gameLevel.OpenLevel(Enum.Level.<Name>)`; to leave the game use
-   `_gameLevel.ReturnToMenu()` (it saves), not `OpenLevel(MainMenu)`.
+   `_gameLevel.ReturnToMenu()` (it saves; `false` = the save failed, ask the player), not
+   `OpenLevel(MainMenu)`. Save from a game screen only via `_gameLevel.SaveGame()`.
 
 5. **Verify** with the `verify` skill, then `run-godot` to see it.
 

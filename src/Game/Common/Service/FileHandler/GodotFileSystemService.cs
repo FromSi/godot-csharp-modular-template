@@ -25,6 +25,11 @@ public class GodotFileSystemService : IFileSystemService
         return MapError(DirAccess.RemoveAbsolute(path));
     }
 
+    public FileError Rename(string from, string to)
+    {
+        return MapError(DirAccess.RenameAbsolute(from, to));
+    }
+
     public IFileAccess? Open(string path, FileAccess.ModeFlags mode)
     {
         var file = FileAccess.Open(path, mode);

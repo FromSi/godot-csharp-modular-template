@@ -10,7 +10,8 @@ Start here, then read the README of a specific layer:
 - [Common/README.md](Common/README.md) — reusable infrastructure (the foundation).
 - [Level/README.md](Level/README.md) — game assembly and screen switching.
 - [Example/README.md](Example/README.md) — a sample feature module.
-- [MainMenu/README.md](MainMenu/README.md) — the start menu (Continue / New Game / Quit).
+- [MainMenu/README.md](MainMenu/README.md) — the start menu (Continue / New Game / Settings / Quit).
+- [Settings/README.md](Settings/README.md) — player settings: display mode and resolution.
 
 ## Three roles
 
@@ -41,7 +42,8 @@ direction keeps the architecture from "bleeding" and makes testing easy.
 src/Game/
   Common/     # foundation: infrastructure not tied to any game
   Level/      # composition root + level screens + cross-module adapters
-  MainMenu/   # start menu UI (Continue / New Game / Quit)
+  MainMenu/   # start menu UI (Continue / New Game / Settings / Quit)
+  Settings/   # player settings: windowed / fullscreen, resolution (own file)
   Example/    # a sample feature module (template to copy)
   <YourFeature>/   # your modules go here
 ```
@@ -122,7 +124,7 @@ Modules never reference each other. When one module (the consumer) needs another
 
 1. The consumer declares an interface **in its own `Service`** in its own terms, e.g.
    `Shop/Service/IShopCatalog.cs` returning the consumer's DTOs.
-2. An **adapter** in `Level/Adapter/` (create the folder on first use) implements it over the other module's service
+2. An **adapter** in `Level/Adapter/` implements it over the other module's service
    (`IInventoryService`) and maps the types. Only `Level` knows both modules.
 3. `GameLevel` passes the adapter to the consumer's service constructor.
 

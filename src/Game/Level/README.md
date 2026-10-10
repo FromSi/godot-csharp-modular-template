@@ -23,13 +23,22 @@ The root `Node` of the main scene ([../../../level/game_level.tscn](../../../lev
 - **in the constructor** it creates all of the `Common` infrastructure and the
   modules (repositories, services, factories) — the one and only place the game is
   "assembled";
-- **in `_Ready`** it creates the start screens (main menu, quit), subscribes them to
+- **in `_Ready`** it applies the saved window settings (`GameWindow.Apply`), adds the F11 /
+  Alt+Enter hotkey node, creates the start screens (main menu, quit), subscribes them to
   level changes and opens `MainMenu`;
 - **`ContinueGame()` / `StartNewGame()`** load the save or reset every state slot, then
   build the game screen and open `Main` — so its UIs subscribe to the loaded / fresh
   states; **`ReturnToMenu()`** (Esc) saves, opens `MainMenu` and frees the game screen (it
-  is rebuilt on the next entry); **`SaveGame()`** writes the save — also from
-  `_Notification` when the window is closed during play.
+  is rebuilt on the next entry) — or returns `false` and stays when the save failed;
+  **`LeaveToMenu()`** leaves without saving (after the player confirmed);
+  **`SaveGame()`** writes the save — also from `_Notification` when the window is closed
+  during play.
+- **Save failures** — `SaveGame()` returns `false`, logs `GD.PushError`, sets
+  `IsLastSaveFailed` and tells the game screen (`ShowSaveResult`); the next good save clears
+  it. The menu shows "Could not save the game" while it is set (after an exit without saving).
+- **Settings** — a separate `SaveService` over the `SettingsState` slot alone, path
+  `user://settings.json`, loaded once in the constructor (fresh when missing). New Game never
+  touches it. See [Settings](../Settings/README.md).
 
 Switching happens via `OpenLevel(...)` / `OpenPreviousLevel()`: they change
 `CurrentLevel` and notify observers.
@@ -46,7 +55,8 @@ public void OpenLevel(Enum.Level level)
 
 ### 3. The root contract — [IGameLevel.cs](IGameLevel.cs)
 The interface through which screens "talk" to the root: they read the current level,
-ask to switch, and enter / leave the game (`ContinueGame`, `StartNewGame`, `ReturnToMenu`). Screens depend on the interface, not on the concrete `GameLevel` —
+ask to switch, and enter / leave the game (`ContinueGame`, `StartNewGame`, `ReturnToMenu`,
+`LeaveToMenu`, `SaveGame`, `IsLastSaveFailed`). Screens depend on the interface, not on the concrete `GameLevel` —
 which makes them easier to test and reuse.
 
 ### 4. The observer — [Observer/ILevelObserver.cs](Observer/ILevelObserver.cs)
@@ -65,21 +75,23 @@ lifetimes:
   - **[QuitLevel.cs](QuitLevel.cs)** — no UI: when switching to `Quit` it closes the game.
     An example of a "logical" level.
   - **[MainMenuLevel.cs](MainMenuLevel.cs)** — hosts the [MainMenu](../MainMenu/README.md)
-    UI (Continue — inactive without a save — / New Game / Quit) and turns its intents into
-    `ContinueGame()` / `StartNewGame()` / `OpenLevel(Quit)`.
+    UI (Continue — inactive without a save that loads — / New Game / Settings / Quit) and turns
+    its intents into `ContinueGame()` / `StartNewGame()` / `OpenLevel(Quit)`; Settings shows the
+    [Settings](../Settings/README.md) screen over the menu.
 - **Game screen** — created by `GameLevel.EnterGame()` after the states were loaded or
   reset, freed by `ReturnToMenu()`:
   - **[ExampleLevel.cs](ExampleLevel.cs)** — shows itself on `Main`, hosts the
     [Example](../Example/README.md) module's UI via its factory, and **listens to that UI**
-    (`IExampleUIObserver`) to handle navigation (Menu); Esc does the same. This is the
-    UI → Level direction: the UI reports intent, the level decides where to go.
+    (`IExampleUIObserver`) to handle Save and Menu; Esc does the same as Menu. This is the
+    UI → Level direction: the UI reports intent, the level decides. When the save on the way
+    out fails, it asks "Exit without saving?" (Exit without saving → `LeaveToMenu()` / Stay).
 
 Why the game screen is rebuilt: `SaveService.Load` / `NewGameService.Create` replace the
 state objects. A UI that subscribed in `_Ready` stays subscribed to the objects of *its*
 session; building the screen after the load and freeing it on exit keeps that true without
 any re-subscribe code. Never load or reset while the game screen exists.
 
-### 6. Adapters — `Adapter/` (create on first use)
+### 6. Adapters — [Adapter/](Adapter)
 Modules don't know each other. When one needs another's data, it declares an interface
 in its own `Service` layer, and `Level` implements it over the other module's service:
 
@@ -111,6 +123,10 @@ public class InventoryShopCatalog : IShopCatalog
 // GameLevel constructor
 _shopService = new ShopService(_shopRepository, new InventoryShopCatalog(_inventoryService));
 ```
+
+Live example: [SettingsFileStore](Adapter/SettingsFileStore.cs) implements Settings'
+`ISettingsStore` (the module wants "save me", it does no file I/O) over the settings
+`SaveService`.
 
 The consumer's tests mock `IShopCatalog`; the adapter itself is engine-free and can be
 tested in `tests/Game.Tests/Level/Adapter/` when the mapping has logic. The same shape works
@@ -146,13 +162,15 @@ GameLevel._Ready()       → creates the menu + quit screens, OpenLevel(MainMenu
 Continue / New Game      → Load() or NewGameService.Create(), build ExampleLevel, OpenLevel(Main)
         │
         ▼
-Esc / Menu               → save, OpenLevel(MainMenu), free ExampleLevel · window close → save
+Esc / Menu               → save ok: OpenLevel(MainMenu), free ExampleLevel
+                           save failed: "Exit without saving?" → LeaveToMenu() or stay
+Window close             → save (failure only logged)
 Menu Quit                → OpenLevel(Quit)
         │
         ▼
 GameLevel.Notify(...)    → OnLevelOppened on every observer
         │
-        ├─ MainMenuLevel: Visible = (newLevel == MainMenu), refresh Continue
+        ├─ MainMenuLevel: Visible = (newLevel == MainMenu), refresh Continue + save warning
         ├─ ExampleLevel:  Visible = (newLevel == Main)
         └─ QuitLevel:     if (newLevel == Quit) GetTree().Quit()
 ```

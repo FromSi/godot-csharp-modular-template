@@ -6,8 +6,13 @@ using Game.Game.Common.Service.JsonConverter;
 using Game.Game.Example.Domain;
 using Game.Game.Example.Service;
 using Game.Game.Example.UI.Factory;
+using Game.Game.Level.Adapter;
 using Game.Game.Level.Observer;
 using Game.Game.MainMenu.UI.Factory;
+using Game.Game.Settings.Domain;
+using Game.Game.Settings.Service;
+using Game.Game.Settings.UI;
+using Game.Game.Settings.UI.Factory;
 using System.Collections.Generic;
 using Godot;
 
@@ -21,7 +26,9 @@ namespace Game.Game.Level;
 /// The game starts on the main menu. The game screen is built when the player continues a save
 /// or starts a new game (so its UIs subscribe to the loaded / fresh states) and dropped when they
 /// return to the menu. Every persistent state is an <see cref="IStateSlot"/>: listed once, it is
-/// saved, loaded, reset on a new game and registered for JSON automatically.
+/// saved, loaded, reset on a new game and registered for JSON automatically. A failed save is
+/// logged and shown to the player (<see cref="IsLastSaveFailed"/>). Settings live in a file of
+/// their own, so New Game never resets them.
 /// </summary>
 public partial class GameLevel : Node, IGameLevel
 {
@@ -45,6 +52,12 @@ public partial class GameLevel : Node, IGameLevel
     private readonly SaveService _saveService;
     private readonly NewGameService _newGameService;
     private readonly MainMenuUIFactory _mainMenuUiFactory;
+
+    // --- Settings module: player settings in their own file (not reset by New Game). ---
+    private const string SettingsPath = "user://settings.json";
+    private readonly ISingleRepository<SettingsState> _settingsRepository;
+    private readonly ISettingsService _settingsService;
+    private readonly SettingsUIFactory _settingsUiFactory;
 
     private CanvasLayer _canvasLayer = null!;
     private ExampleLevel? _gameScreen;
@@ -96,12 +109,29 @@ public partial class GameLevel : Node, IGameLevel
         _newGameService = new NewGameService(slots);
         _newGameService.Create();
 
+        // Settings: one slot in a file of its own, loaded once (fresh when there is none yet).
+        _settingsRepository = new SingleRepository<SettingsState>();
+        var settingsSlot = new StateSlot<SettingsState>(_settingsRepository, () => new SettingsState());
+        _jsonConverterStateService.Register(settingsSlot.StateType);
+        var settingsSaveService = new SaveService(SettingsPath, _fileHandlerService, [settingsSlot]);
+
+        if (!settingsSaveService.Load())
+        {
+            settingsSlot.Reset();
+        }
+
+        _settingsService = new SettingsService(_settingsRepository, new SettingsFileStore(settingsSaveService));
+        _settingsUiFactory = new SettingsUIFactory(_settingsService);
+
         _mainMenuUiFactory = new MainMenuUIFactory(_saveService);
-        _exampleUiFactory = new ExampleUIFactory(_noteService, _saveService);
+        _exampleUiFactory = new ExampleUIFactory(_noteService);
     }
 
     public override void _Ready()
     {
+        GameWindow.Apply(GetWindow(), _settingsService);
+        AddChild(_settingsUiFactory.CreateDisplayModeHotkey());
+
         _canvasLayer = new CanvasLayer { Layer = 99 };
         AddChild(_canvasLayer);
 
@@ -109,7 +139,7 @@ public partial class GameLevel : Node, IGameLevel
         _observers.Add(quitLevel);
         _canvasLayer.AddChild(quitLevel);
 
-        var mainMenuLevel = new MainMenuLevel(this, _mainMenuUiFactory);
+        var mainMenuLevel = new MainMenuLevel(this, _mainMenuUiFactory, _settingsUiFactory);
         _observers.Add(mainMenuLevel);
         _canvasLayer.AddChild(mainMenuLevel);
 
@@ -134,14 +164,37 @@ public partial class GameLevel : Node, IGameLevel
         EnterGame();
     }
 
-    public void SaveGame()
+    public bool IsLastSaveFailed { get; private set; }
+
+    public bool SaveGame()
     {
-        _saveService.Save();
+        var isSaved = _saveService.Save();
+
+        IsLastSaveFailed = !isSaved;
+        _gameScreen?.ShowSaveResult(isSaved);
+
+        if (!isSaved)
+        {
+            GD.PushError($"Could not write the save file {SavePath}");
+        }
+
+        return isSaved;
     }
 
-    public void ReturnToMenu()
+    public bool ReturnToMenu()
     {
-        SaveGame();
+        if (!SaveGame())
+        {
+            return false;
+        }
+
+        LeaveToMenu();
+
+        return true;
+    }
+
+    public void LeaveToMenu()
+    {
         OpenLevel(Enum.Level.MainMenu);
 
         if (_gameScreen != null)
@@ -152,7 +205,7 @@ public partial class GameLevel : Node, IGameLevel
         }
     }
 
-    // Closing the window while playing keeps the progress.
+    // Closing the window while playing keeps the progress (a failure is only logged — the game is closing).
     public override void _Notification(int what)
     {
         if (what == NotificationWMCloseRequest && CurrentLevel == Enum.Level.Main)

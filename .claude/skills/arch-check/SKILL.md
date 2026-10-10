@@ -38,6 +38,9 @@ Checklist:
    objects of another state; checks look up by id and compare the snapshot; `Id` isn't reused as
    a player-visible number.
 
+   **Saving**: game saves only via `GameLevel.SaveGame()` (its `bool` result reaches the player);
+   no `SaveService.Save()` in module code; data that survives New Game has its own `SaveService`.
+
 7. **Session lifetime** — no Load / New Game while a game UI exists; game UIs live in the
    screen built by `GameLevel.EnterGame()`, subscribe in `_Ready`, unsubscribe in `_ExitTree`.
    No `DateTime.Now` / `new Random()` in Service (use `IClockService` / `IRandomGeneratorService`).

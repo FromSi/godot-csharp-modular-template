@@ -45,7 +45,11 @@ the screen looks/behaves right — run it.
    command cp -f "$SP/../GameLevel.cs.bak" src/Game/Level/GameLevel.cs
    git diff src/Game/Level/GameLevel.cs   # must show no demo lines
    ```
-   Always restore, even if the run fails, and rebuild afterwards. `GD.Print` output appears
+   Always restore, even if the run fails, and rebuild afterwards. To see a **failed save**, make
+   the save folder read-only for the run and restore it after:
+   `At(1.2, () => System.IO.File.SetUnixFileMode(ProjectSettings.GlobalizePath("user://saves"),
+   System.IO.UnixFileMode.UserRead | System.IO.UnixFileMode.UserExecute));` then
+   `chmod 755 ~/.local/share/godot/app_userdata/<name>/saves` once Godot exits. `GD.Print` output appears
    in the console next to the Movie Maker summary.
 
 5. **New `.cs` files need `.uid` files** (they are committed). A normal run creates only some;

@@ -4,8 +4,14 @@ using FileAccess = Godot.FileAccess;
 
 namespace Game.Game.Common.Service.FileHandler;
 
+/// <summary>
+/// Reads and writes one text file, encrypted in production. A write never damages the old file:
+/// it goes to <c>path.tmp</c>, is read back and compared, and only then replaces the file —
+/// a full disk or a crash mid-write leaves the previous file as it was.
+/// </summary>
 public abstract class FileHandlerService
 {
+    private const string TempSuffix = ".tmp";
     private const string EncryptionKey = "2f207ce7395badbdde6d92386b1650a7d18a15d24dca9d2eb40f6c9a4f8e27b6";
 
     protected readonly IOsService OsService;
@@ -22,7 +28,8 @@ public abstract class FileHandlerService
 
     public FileError Store(string content, string path, bool createDir = true)
     {
-        var (error, file) = OpenFileForWrite(path, createDir);
+        var tempPath = path + TempSuffix;
+        var (error, file) = OpenFileForWrite(tempPath, createDir);
 
         if (error != FileError.Ok)
         {
@@ -33,7 +40,15 @@ public abstract class FileHandlerService
         file!.Close();
         file.Dispose();
 
-        return FileError.Ok;
+        // An encrypted file is written out only on Close, so reading back is the one sure check.
+        if (Load(tempPath) != content)
+        {
+            FileSystemService.Remove(tempPath);
+
+            return FileError.Failed;
+        }
+
+        return FileSystemService.Rename(tempPath, path);
     }
 
     public string? Load(string path)

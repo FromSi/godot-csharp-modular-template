@@ -11,7 +11,8 @@ with plumbing.
 - 🧩 **Modular.** One folder per feature; add or remove without touching the rest.
 - 🧠 **Engine-free logic.** `Domain`/`Service` don't know Godot — test them without the editor.
 - 🎛️ **UI as code.** Built in C#, not `.tscn` — clean git diffs and real code review.
-- 💾 **Save system ready.** Main menu (Continue / New Game) + JSON saves; a new saved state is one line.
+- 💾 **Save system ready.** Main menu (Continue / New Game) + JSON saves written safely via a temp file, with a warning when a save fails; a new saved state is one line.
+- 🖥️ **Settings.** Windowed / fullscreen (F11, Alt+Enter) and window resolution, kept in their own file.
 - 🤖 **Built for AI agents.** `CLAUDE.md` + [skills](.claude/skills) so features land the same way every time.
 
 ![Main scene — the example module running](screenshots/main.png)
@@ -26,7 +27,7 @@ with plumbing.
 1. Open `project.godot` in Godot 4.6 (the .NET build of the editor).
 2. The editor imports assets and builds the C# on its own.
 3. F5 — launches the main scene [level/game_level.tscn](level/game_level.tscn):
-   the main menu (**Continue / New Game / Quit**). New Game opens the example screen — an
+   the main menu (**Continue / New Game / Settings / Quit**). New Game opens the example screen — an
    input field and **Random / Save / Menu** buttons; Esc saves and returns to the menu.
 
 Build/test from the console:
@@ -62,6 +63,7 @@ Details live in READMEs next to the code:
 - [src/Game/Level/README.md](src/Game/Level/README.md) — game assembly and screen switching.
 - [src/Game/Example/README.md](src/Game/Example/README.md) — the sample feature module.
 - [src/Game/MainMenu/README.md](src/Game/MainMenu/README.md) — the start menu.
+- [src/Game/Settings/README.md](src/Game/Settings/README.md) — player settings.
 
 ## Tests
 Tests are in [tests/Game.Tests](tests/Game.Tests), a separate project referencing

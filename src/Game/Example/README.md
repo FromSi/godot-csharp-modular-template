@@ -19,9 +19,10 @@ The game screen opened by the main menu's Continue / New Game: an input field an
 - **Random** — puts a random number into the field (`IRandomGeneratorService` from `Common`);
 - every change of the note is stamped with the time from `IClockService` (`NoteState.ChangedAt`);
   the label shows it — "changed at 12:34:56" or "never changed";
-- **Save** — commits the field's value to the note, then persists via the central `SaveService`;
+- **Save** — commits the field's value to the note and asks the level to save
+  (`GameLevel.SaveGame()`); the status line shows "Saved" or a red "Could not save the game";
 - **Menu** (or Esc) — raises a UI intent to the level (see below), which saves and returns
-  to the main menu.
+  to the main menu; if the save fails, it asks "Exit without saving?".
 
 Load and New Game are not here — they are the menu's Continue / New Game, done *before* this
 screen is built (see [../Level/README.md](../Level/README.md)).
@@ -68,14 +69,14 @@ in the module.
 ```
 Save button (ExampleUI)
         │  _noteService.SetText(text)      → note state changes (observers fire)
-        │  _saveService.Save()             → central save
+        │  OnSaveRequested()               → ExampleLevel → GameLevel.SaveGame()
         ▼
-SaveService.Save()
+SaveService.Save()  → bool, reported back via ExampleUI.ShowSaveResult
         │  gathers every state slot (IdState, NoteState, …)
         ▼
 IJsonStateFileHandlerService.Store([...states], "user://saves/game.save")
         ▼
-JSON file on disk
+game.save.tmp → read back → renamed over game.save
 ```
 
 Load goes through the menu's Continue → `SaveService.Load()`, which restores every slot

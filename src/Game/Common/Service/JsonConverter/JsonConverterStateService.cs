@@ -78,7 +78,22 @@ public class JsonConverterStateService : IJsonConverterStateService
         return JsonSerializer.Serialize(result, _options);
     }
 
+    // A broken file (truncated, hand-edited, wrong shape) reads as "no states": the caller sees
+    // an empty list instead of an exception.
     public List<object?> Deserialize(string json)
+    {
+        try
+        {
+            return DeserializeEntries(json);
+        }
+        catch (Exception exception) when (
+            exception is JsonException or InvalidOperationException or KeyNotFoundException)
+        {
+            return [];
+        }
+    }
+
+    private List<object?> DeserializeEntries(string json)
     {
         var entries = JsonSerializer.Deserialize<List<JsonElement>>(json, _options);
 

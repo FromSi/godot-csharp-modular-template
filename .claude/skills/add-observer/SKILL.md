@@ -74,6 +74,7 @@ MainMenu ──Continue──► SaveService.Load()      ──┐
                                                     (UIs subscribe in _Ready) → OpenLevel(Main)
 Game ──Esc/Menu──► GameLevel.ReturnToMenu(): Save → OpenLevel(MainMenu) → free game screen
                                              (UIs unsubscribe in _ExitTree)
+                   save failed → "Exit without saving?" → LeaveToMenu() or stay
 ```
 
 - Host game UIs inside the game screen that `GameLevel.EnterGame()` creates — not in a
@@ -123,7 +124,7 @@ public override void _Ready()
     AddChild(ui);
 }
 
-public void OnMenuRequested() => _gameLevel.ReturnToMenu();
+public void OnMenuRequested() => ReturnToMenu();   // asks before leaving if the save failed
 ```
 
 Keeps navigation logic in the level, not the UI.

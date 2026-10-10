@@ -9,6 +9,8 @@ public interface IFileSystemService
     bool DirExists(string path);
     FileError MakeDirRecursive(string path);
     FileError Remove(string path);
+    // Moves `from` to `to`, replacing an existing `to`.
+    FileError Rename(string from, string to);
     IFileAccess? Open(string path, FileAccess.ModeFlags mode);
     IFileAccess? OpenEncryptedWithPass(string path, FileAccess.ModeFlags mode, string password);
 }

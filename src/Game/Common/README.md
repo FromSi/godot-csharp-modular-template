@@ -122,21 +122,27 @@ What matters when saving:
   (`Register(typeof(...))`), otherwise the serializer silently skips it.
   `GameLevel` registers every state slot's type automatically — don't register by hand.
 - In production the file is encrypted; in debug it's readable JSON (decided by `OsService`).
+- A write never damages the old file: it goes to `<path>.tmp`, is read back and compared (an
+  encrypted file is written out only on close), and only then renamed over the file
+  (`IFileSystemService.Rename`). A full disk or a crash mid-write leaves the previous file;
+  `Store` returns the `FileError`.
+- A broken file (truncated, hand-edited, wrong shape) loads as an empty list, never an exception.
 - The details (creating directories, encryption, `Godot.FileAccess`) are hidden
   behind the `IFileSystemService` / `IFileAccess` interfaces — which can be mocked too.
 
-`Exists(path)` answers "is there a save?" without reading it. Live usage —
-[SaveService](Service/SaveService.cs).
+`Exists(path)` answers "is there a file?" without reading it (a file that exists may still
+not load — `SaveService.CanLoad()` checks that). Live usage — [SaveService](Service/SaveService.cs).
 
 ### SaveService / NewGameService — state slots ([Service/SaveService.cs](Service/SaveService.cs), [Service/NewGameService.cs](Service/NewGameService.cs))
 Every persistent state is an [IStateSlot](Service/IStateSlot.cs) — usually a
 [StateSlot&lt;T&gt;](Service/StateSlot.cs) over a single-state repository plus a factory for the
 fresh state. `GameLevel` lists the slots once; from that list:
 
-- `SaveService.Save()` writes every slot's state to one file (slot order = file order);
+- `SaveService.Save()` writes every slot's state to one file (slot order = file order) and
+  returns `false` when it could not be written — the caller tells the player;
 - `SaveService.Load()` restores them — only if the file has exactly one state of the right
-  type per slot, otherwise nothing changes (no half-loaded game); `HasSave()` drives the
-  menu's Continue;
+  type per slot, otherwise nothing changes (no half-loaded game); `CanLoad()` runs the same
+  check without restoring and drives the menu's Continue;
 - `NewGameService.Create()` resets every slot to its fresh state (empty, or seeded);
 - each slot's `StateType` is registered in the JSON converter.
 
@@ -151,6 +157,9 @@ var slots = new List<IStateSlot>
 Repositories start empty; `GameLevel` calls `NewGameService.Create()` once after building
 the slots, so every repository has a state before anything reads it. `Common` never
 references concrete module states, and module services do no file I/O.
+
+Data that must survive New Game (player settings) gets its own `SaveService` over its own
+slot and path — see [Settings](../Settings/README.md).
 
 A save written before a slot was added or removed no longer matches and is rejected as a
 whole (Continue does nothing). Keep the list append-only once players have saves, or

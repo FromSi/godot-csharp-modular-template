@@ -1,3 +1,4 @@
+using Game.Game.Common.Enum;
 using Game.Game.Common.Service.FileHandler;
 using System.Collections.Generic;
 using System.Linq;
@@ -28,25 +29,26 @@ public class SaveService
         _slots = slots;
     }
 
-    public bool HasSave()
+    // True when Load() would succeed: the file exists, parses and matches the slots. A broken,
+    // outdated or foreign (debug/release) save counts as no save.
+    public bool CanLoad()
     {
-        return _fileHandlerService.Exists(_savePath);
+        return ReadMatching() != null;
     }
 
-    public void Save()
+    // False when the file could not be written (no access, full disk); the old save stays intact.
+    public bool Save()
     {
         var data = _slots.Select(slot => (object?)slot.Current()).ToList();
 
-        _fileHandlerService.Store(data, _savePath);
+        return _fileHandlerService.Store(data, _savePath) == FileError.Ok;
     }
 
     public bool Load()
     {
-        var data = _fileHandlerService.Load(_savePath);
-        var matches = data.Count == _slots.Count
-            && data.Zip(_slots).All(pair => pair.Second.StateType.IsInstanceOfType(pair.First));
+        var data = ReadMatching();
 
-        if (!matches)
+        if (data == null)
         {
             return false;
         }
@@ -57,5 +59,15 @@ public class SaveService
         }
 
         return true;
+    }
+
+    // The saved states, or null unless there is exactly one state of the right type per slot.
+    private List<object?>? ReadMatching()
+    {
+        var data = _fileHandlerService.Load(_savePath);
+        var matches = data.Count == _slots.Count
+            && data.Zip(_slots).All(pair => pair.Second.StateType.IsInstanceOfType(pair.First));
+
+        return matches ? data : null;
     }
 }

@@ -7,7 +7,8 @@ description: Cleanly remove the Example demo module and its wiring, tests and do
 
 The `Example` module is a demo; removing it must leave the project building and running
 (menu → New Game → game screen → Esc → menu). Confirm with the user before deleting.
-`Common`, `MainMenu`, `QuitLevel`, `MainMenuLevel` and the slot-based save system stay.
+`Common`, `MainMenu`, `Settings`, `QuitLevel`, `MainMenuLevel`, `Level/Adapter/SettingsFileStore` and the
+slot-based save system stay.
 
 Steps:
 
@@ -18,8 +19,9 @@ Steps:
    what `GameLevel.EnterGame()` builds. Ask the user which they want:
    - the screen of their first real module (use `add-module` + `add-screen`), or
    - a minimal placeholder `src/Game/Level/GameScreenLevel.cs`: a `Control, ILevelObserver`
-     with a centered `Label`, `Visible = newLevel == Enum.Level.Main`, and Esc →
-     `_gameLevel.ReturnToMenu()` in `_Input` (keep `GetViewport().SetInputAsHandled()`).
+     with a centered `Label`, `Visible = newLevel == Enum.Level.Main`, Esc → `ReturnToMenu()` in
+     `_Input` (keep `GetViewport().SetInputAsHandled()`), `ShowSaveResult(bool)` and the
+     "Exit without saving?" dialog — copy those three from `ExampleLevel` before deleting it.
    Delete `ExampleLevel.cs` and change the `_gameScreen` field type / `EnterGame()` accordingly.
 
 3. **Unwire from [GameLevel](../../../src/Game/Level/GameLevel.cs)**:
@@ -30,8 +32,9 @@ Steps:
 
 4. **Fix the JSON round-trip test**
    [JsonConverterStateServiceTests](../../../tests/Game.Tests/Common/Service/JsonConverterStateServiceTests.cs):
-   drop `NoteState` from the `Register` list and from the round trip (keep `IdState`; use a
-   type that is still registered in `Serialize_SkipsUnregisteredTypes`, e.g. a private test POCO).
+   drop `NoteState` from the `Register` list and from the round trip (keep `IdState` and
+   `SettingsState`); in `Serialize_SkipsUnregisteredTypes` and `BrokenJson_ReadsAsNoStates` use
+   `SettingsState` instead of `NoteState`.
 
 5. **Docs** — remove/replace mentions of `Example`, `NoteState`, `NoteService`, `ExampleUI`,
    `ExampleLevel` in root [README.md](../../../README.md) (incl. the screenshot caption),
