@@ -75,4 +75,5 @@ Details and the "add a feature" steps are in [src/Game/README.md](src/Game/READM
 
 ## Working agreement
 - Make a short plan before non-trivial changes; if a change is unclear or maybe unneeded, ask first with evidence.
+- **Skills are mandatory.** If a project skill covers the task, invoke it via `Skill` *before* working, not after and not by hand: `add-module`, `add-screen`, `add-observer`, `add-persistable-state`, `add-tests` (every time tests are written or changed), `module-docs` (README changes), `run-godot` (to see UI live). After code changes always run `arch-check` and then `verify` (build + tests) — never replace them with a manual `dotnet build`/`dotnet test`.
 - Be terse and concrete. When editing existing code, show only the changed lines with a little context, not the whole file.
