@@ -1,0 +1,85 @@
+# Russian translation. msgid = the English text as written in the code, msgstr = Russian.
+# A text missing here stays English. Texts with values use {0}, {1} (string.Format).
+# One line per msgid and msgstr, no plural forms (TranslationTests check both); grouped by module.
+msgid ""
+msgstr ""
+"Language: ru\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+# Main menu
+msgid "Game"
+msgstr "Игра"
+
+msgid "Continue"
+msgstr "Продолжить"
+
+msgid "New Game"
+msgstr "Новая игра"
+
+msgid "Settings"
+msgstr "Настройки"
+
+msgid "Quit"
+msgstr "Выход"
+
+msgid "Could not save the game"
+msgstr "Не удалось сохранить игру"
+
+# Settings
+msgid "Display mode"
+msgstr "Режим экрана"
+
+msgid "Windowed"
+msgstr "Оконный"
+
+msgid "Fullscreen"
+msgstr "Полный экран"
+
+msgid "Resolution"
+msgstr "Разрешение"
+
+msgid "Language"
+msgstr "Язык"
+
+msgid "Back"
+msgstr "Назад"
+
+# Game screen: leaving after a failed save
+msgid "The progress since the last save will be lost. Leave anyway?"
+msgstr "Прогресс с последнего сохранения будет потерян. Всё равно выйти?"
+
+msgid "Exit without saving"
+msgstr "Выйти без сохранения"
+
+msgid "Stay"
+msgstr "Остаться"
+
+# Example
+msgid "Save + observer demo"
+msgstr "Демо: сохранение + наблюдатель"
+
+msgid "Digits only…"
+msgstr "Только цифры…"
+
+msgid "Random"
+msgstr "Случайное"
+
+msgid "Save"
+msgstr "Сохранить"
+
+msgid "Menu"
+msgstr "Меню"
+
+msgid "Random number generated (press Save to store it)"
+msgstr "Случайное число готово (нажмите «Сохранить», чтобы его записать)"
+
+msgid "Saved"
+msgstr "Сохранено"
+
+msgid "Current value: {0} (changed at {1:HH:mm:ss})"
+msgstr "Текущее значение: {0} (изменено в {1:HH:mm:ss})"
+
+msgid "Current value: {0} (never changed)"
+msgstr "Текущее значение: {0} (не менялось)"

@@ -37,6 +37,8 @@ Rules:
 
 6. **New persistable state** → add it to the round trip in
    [JsonConverterStateServiceTests](../../../tests/Game.Tests/Common/Service/JsonConverterStateServiceTests.cs).
+   **New data texts shown as is** (a seed's names, an enum shown by name) → add them to
+   `EveryDataTextIsTranslated` in [TranslationTests](../../../tests/Game.Tests/Locale/TranslationTests.cs).
 
 7. **No redundant tests** — don't test framework code, trivial getters, or Godot behavior.
    Keep tests current with the code.

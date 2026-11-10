@@ -125,4 +125,37 @@ public class SettingsServiceTests
 
         Assert.That(_service.GetResolution(Uhd), Is.EqualTo(new Resolution(1280, 720)));
     }
+
+    [Test]
+    public void Languages_AreEnglishByDefaultAndRussian()
+    {
+        Assert.That(_service.GetLanguages().Select(language => language.Code), Is.EqualTo(new[] { "en", "ru" }));
+        Assert.That(_service.GetLanguage().Code, Is.EqualTo("en"));
+    }
+
+    [Test]
+    public void SetLanguage_ChangesSavesAndNotifies_RefusesTheSameOrAnUnofferedOne()
+    {
+        var observer = new Mock<ISettingsStateObserver>();
+        _service.Subscribe(observer.Object);
+        var russian = _service.GetLanguages()[1];
+
+        Assert.That(_service.SetLanguage(new Language("en", "English")), Is.False);
+        // `xx` is no real language, so it stays unoffered whatever languages get added.
+        Assert.That(_service.SetLanguage(new Language("xx", "Unknown")), Is.False);
+        Assert.That(_service.SetLanguage(russian), Is.True);
+
+        Assert.That(_service.GetLanguage(), Is.EqualTo(russian));
+        Assert.That(_repository.GetOne().LanguageCode, Is.EqualTo("ru"));
+        _store.Verify(s => s.Save(), Times.Once);
+        observer.Verify(o => o.OnSettingsChanged(It.IsAny<SettingsState>()), Times.Once);
+    }
+
+    [Test]
+    public void GetLanguage_FallsBackToEnglishForAnUnknownSavedOne()
+    {
+        _repository.GetOne().LanguageCode = "xx";
+
+        Assert.That(_service.GetLanguage().Code, Is.EqualTo("en"));
+    }
 }

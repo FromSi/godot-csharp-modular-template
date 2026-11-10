@@ -49,8 +49,10 @@ the screen looks/behaves right — run it.
    the save folder read-only for the run and restore it after:
    `At(1.2, () => System.IO.File.SetUnixFileMode(ProjectSettings.GlobalizePath("user://saves"),
    System.IO.UnixFileMode.UserRead | System.IO.UnixFileMode.UserExecute));` then
-   `chmod 755 ~/.local/share/godot/app_userdata/<name>/saves` once Godot exits. `GD.Print` output appears
-   in the console next to the Movie Maker summary.
+   `chmod 755 ~/.local/share/godot/app_userdata/<name>/saves` once Godot exits. To see the
+   **Russian texts** (they are ~25% longer — check they fit), make the first demo line
+   `TranslationServer.SetLocale("ru");` (not saved; the settings file keeps the player's choice).
+   `GD.Print` output appears in the console next to the Movie Maker summary.
 
 5. **New `.cs` files need `.uid` files** (they are committed). A normal run creates only some;
    `timeout 120 <godot> --headless --path . --import` generates the rest.

@@ -59,7 +59,7 @@ Steps for a module `<Module>` and state `<Name>State`:
            _scoreService.Unsubscribe(this);
        }
 
-       public void OnScoreChanged(int score) { _label.Text = $"Score: {score}"; }
+       public void OnScoreChanged(int score) { _label.Text = Localize.Format("Score: {0}", score); }   // + ru.po
    }
    ```
 
@@ -74,7 +74,7 @@ MainMenu ──Continue──► SaveService.Load()      ──┐
                                                     (UIs subscribe in _Ready) → OpenLevel(Main)
 Game ──Esc/Menu──► GameLevel.ReturnToMenu(): Save → OpenLevel(MainMenu) → free game screen
                                              (UIs unsubscribe in _ExitTree)
-                   save failed → "Exit without saving?" → LeaveToMenu() or stay
+                   save failed → "Leave anyway?" → LeaveToMenu() or stay
 ```
 
 - Host game UIs inside the game screen that `GameLevel.EnterGame()` creates — not in a

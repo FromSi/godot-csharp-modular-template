@@ -45,7 +45,7 @@ public partial class ExampleLevel : Control, ILevelObserver, IExampleUIObserver
         _exitWithoutSaving = new ConfirmationDialog
         {
             Title = "Could not save the game",
-            DialogText = "The progress since the last save will be lost. Exit without saving?",
+            DialogText = "The progress since the last save will be lost. Leave anyway?",
             OkButtonText = "Exit without saving",
             CancelButtonText = "Stay",
         };

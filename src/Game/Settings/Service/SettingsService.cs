@@ -8,9 +8,10 @@ using System.Linq;
 namespace Game.Game.Settings.Service;
 
 /// <summary>
-/// The game settings: windowed or fullscreen, and the window size — one of
-/// <see cref="Resolutions"/> that fits the player's screen (a saved value that is not offered
-/// falls back to the default). A change is saved right away.
+/// The game settings: windowed or fullscreen, the window size — one of <see cref="Resolutions"/>
+/// that fits the player's screen (a saved value that is not offered falls back to the default) —
+/// and the language, one of <see cref="Languages"/> (an unknown saved one falls back to the first,
+/// English). A change is saved right away.
 /// </summary>
 public class SettingsService : ISettingsService
 {
@@ -29,6 +30,10 @@ public class SettingsService : ISettingsService
         new(2560, 1080), new(2560, 1440), new(2560, 1600), new(2880, 1800), new(3200, 1800), new(3440, 1440),
         new(3840, 1080), new(3840, 1600), new(3840, 2160), new(5120, 1440), new(5120, 2160),
     ];
+
+    // English first: the texts are written in it, and it is the default. Each other language has its
+    // translation in locale/<code>.po; a name is shown in its own language.
+    public static readonly IReadOnlyList<Language> Languages = [new("en", "English"), new("ru", "Русский")];
 
     private readonly ISingleRepository<SettingsState> _repository;
     private readonly ISettingsStore _store;
@@ -111,6 +116,31 @@ public class SettingsService : ISettingsService
         }
 
         state.SetResolution(resolution);
+        _store.Save();
+
+        return true;
+    }
+
+    public IReadOnlyList<Language> GetLanguages()
+    {
+        return Languages;
+    }
+
+    public Language GetLanguage()
+    {
+        var code = _repository.GetOne().LanguageCode;
+
+        return Languages.FirstOrDefault(language => language.Code == code) ?? Languages[0];
+    }
+
+    public bool SetLanguage(Language language)
+    {
+        if (!Languages.Contains(language) || language == GetLanguage())
+        {
+            return false;
+        }
+
+        _repository.GetOne().SetLanguage(language);
         _store.Save();
 
         return true;

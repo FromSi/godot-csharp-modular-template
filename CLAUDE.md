@@ -24,13 +24,14 @@ Dependencies point only toward `Common`; `Common` knows nothing about modules or
 Details and the "add a feature" steps are in [src/Game/README.md](src/Game/README.md) — don't duplicate them elsewhere.
 
 ## Layout
-- `src/Game/Common/` — reusable infrastructure (no game logic here); `Common/UI/` holds shared Godot widgets.
+- `src/Game/Common/` — reusable infrastructure (no game logic here); `Common/UI/` holds shared Godot widgets and `Localize`.
 - `src/Game/<Feature>/` — one folder per feature, layers `Domain / Service / UI / UI/Factory` (+ `Enum/`, `Observer/` when needed).
 - `src/Game/MainMenu/` — start menu UI (Continue / New Game / Settings / Quit).
-- `src/Game/Settings/` — player settings (windowed / fullscreen, resolution), saved to their own file.
+- `src/Game/Settings/` — player settings (windowed / fullscreen, resolution, language), saved to their own file.
 - `src/Game/Level/` — composition root (`GameLevel`), level screens, cross-module adapters (`Level/Adapter/`); the only place wiring happens.
 - `level/game_level.tscn` — the single Godot scene (main scene).
-- `tests/Game.Tests/` — NUnit + Moq, mirrors the `src/Game` folder structure.
+- `locale/ru.po` — the Russian translation (msgid = the English text in code); registered in `project.godot`.
+- `tests/Game.Tests/` — NUnit + Moq, mirrors the `src/Game` folder structure; `Locale/` checks the translations.
 
 ## Naming
 - **Namespaces mirror the folder path with a `Game.Game` prefix**: `src/Game/Example/Service` → `namespace Game.Game.Example.Service`. (The double `Game` = assembly `Game` + `src/Game`.) This is the most common gotcha — match it exactly.
@@ -64,6 +65,9 @@ Details and the "add a feature" steps are in [src/Game/README.md](src/Game/READM
 - **No `virtual` methods** — use `abstract` or an interface for extension points.
 - **Tests are mandatory** for new/changed logic; keep them current, don't write redundant ones. Test `Service`/`Domain` (engine-free); mock `Common` interfaces (see the `add-tests` skill). Adapters in `Level/Adapter/` are engine-free and tested too.
 - **Time and randomness behind interfaces** — `IClockService.Now`, `IRandomGeneratorService`; never `DateTime.Now`/`Random` in a Service.
+- **Texts: English in code, translated via `locale/ru.po`.** English is the default language, Russian the second (picked in Settings). A plain control text is translated by Godot; a text with values goes through `Localize.Format(...)`, never `$"..."`; add every new text to `ru.po`. `Domain`/`Service` return English, only `UI` translates. See [Texts and translation](src/Game/README.md#texts-and-translation); a new language — the `add-language` skill.
+- **Everything the player sees is translated.** In Russian every visible text is Russian — UI, the game's title, data shown as is (an item's name), generated texts too: build them from texts that are in `ru.po`, never make up an English string that `ru.po` can't know. As they are stay only a language's own name (English, Русский) and texts without words (`1920 × 1080 (16:9)`).
+- **No tautology in texts.** Don't repeat a word or idea within one text, or between texts the player sees together (a title and its body, a dialog and its buttons) — in English and in Russian.
 
 ## Code style
 - 4 spaces, no tabs. Max 120 chars/line. No trailing whitespace. One trailing newline.

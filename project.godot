@@ -25,3 +25,7 @@ window/stretch/mode="canvas_items"
 [dotnet]
 
 project/assembly_name="Game"
+
+[internationalization]
+
+locale/translations=PackedStringArray("res://locale/ru.po")

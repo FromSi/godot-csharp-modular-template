@@ -14,6 +14,9 @@ public interface ISettingsService
     IReadOnlyList<Resolution> GetResolutions(Resolution screen);
     Resolution GetResolution(Resolution screen);
     bool SetResolution(Resolution resolution);
+    IReadOnlyList<Language> GetLanguages();
+    Language GetLanguage();
+    bool SetLanguage(Language language);
     void Subscribe(ISettingsStateObserver observer);
     void Unsubscribe(ISettingsStateObserver observer);
 }

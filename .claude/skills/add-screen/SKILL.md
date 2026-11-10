@@ -54,7 +54,9 @@ Then:
    }
    ```
    Layout and data come from the module's UI (via its factory) — the screen only decides
-   *when to show* and *where to navigate*.
+   *when to show* and *where to navigate*. Texts the screen shows itself (a dialog, like
+   `ExampleLevel`'s "Leave anyway?") are English and go to `locale/ru.po` too — see
+   "Texts and translation" in [src/Game/README.md](../../../src/Game/README.md).
 
 3. **Register it** in [GameLevel](../../../src/Game/Level/GameLevel.cs):
    - session screen — in `_Ready`, next to the menu:
@@ -66,7 +68,7 @@ Then:
    - game screen — in `EnterGame()` the same three lines, keep the reference in a field and
      undo them in `LeaveToMenu()` (`_observers.Remove(...)`, `QueueFree()`, field = `null`).
      It also gets `ShowSaveResult(bool)` (called by `GameLevel.SaveGame()`) and, on a failed
-     `ReturnToMenu()`, asks "Exit without saving?" → `LeaveToMenu()` (see `ExampleLevel`).
+     `ReturnToMenu()`, asks "Leave anyway?" → `LeaveToMenu()` (see `ExampleLevel`).
    - an overlay over a session screen (like Settings over the menu) — create it in that
      screen's `_Ready`, hidden, and toggle `Visible` from the intents.
 

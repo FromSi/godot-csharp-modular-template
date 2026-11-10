@@ -9,10 +9,11 @@ using Godot;
 namespace Game.Game.Settings.UI;
 
 /// <summary>
-/// Settings screen: a dimmed overlay with a centred panel — the display mode and the window
-/// resolution (inactive in fullscreen), each applied and saved as soon as it is picked, and
-/// "Back" (raised to the level via <see cref="ISettingsUIObserver"/>; Esc does the same).
-/// Watches the settings, so F11 / Alt+Enter pressed while it is open shows up at once.
+/// Settings screen: a dimmed overlay with a centred panel — the display mode, the window
+/// resolution (inactive in fullscreen) and the language, each applied and saved as soon as it is
+/// picked, and "Back" (raised to the level via <see cref="ISettingsUIObserver"/>; Esc does the same).
+/// Watches the settings, so F11 / Alt+Enter pressed while it is open shows up at once. Its texts
+/// are plain control texts, so Godot re-translates them the moment a language is picked.
 /// </summary>
 public partial class SettingsUI : Control, ISettingsStateObserver
 {
@@ -21,6 +22,7 @@ public partial class SettingsUI : Control, ISettingsStateObserver
 
     private OptionButton _displayMode = null!;
     private OptionButton _resolution = null!;
+    private OptionButton _language = null!;
     private IReadOnlyList<Resolution> _resolutions = [];
 
     public SettingsUI(ISettingsService settingsService)
@@ -68,6 +70,8 @@ public partial class SettingsUI : Control, ISettingsStateObserver
         _displayMode.ItemSelected += OnDisplayModeSelected;
         _resolution = AddRow(box, "Resolution");
         _resolution.ItemSelected += OnResolutionSelected;
+        _language = AddRow(box, "Language");
+        _language.ItemSelected += OnLanguageSelected;
 
         var back = new Button { Text = "Back", CustomMinimumSize = new Vector2(0, 40) };
         back.Pressed += Close;
@@ -106,6 +110,7 @@ public partial class SettingsUI : Control, ISettingsStateObserver
         Fill(_displayMode, _settingsService.GetDisplayModes(), _settingsService.GetDisplayMode());
         Fill(_resolution, _resolutions, _settingsService.GetResolution(screen));
         _resolution.Disabled = _settingsService.GetDisplayMode() == DisplayMode.Fullscreen;
+        Fill(_language, _settingsService.GetLanguages(), _settingsService.GetLanguage());
     }
 
     private static OptionButton AddRow(VBoxContainer box, string text)
@@ -149,6 +154,16 @@ public partial class SettingsUI : Control, ISettingsStateObserver
         if (_settingsService.SetResolution(_resolutions[(int)index]))
         {
             GameWindow.Apply(GetWindow(), _settingsService);
+        }
+    }
+
+    private void OnLanguageSelected(long index)
+    {
+        var language = _settingsService.GetLanguages()[(int)index];
+
+        if (_settingsService.SetLanguage(language))
+        {
+            GameLanguage.Apply(language);
         }
     }
 

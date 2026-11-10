@@ -28,7 +28,8 @@ namespace Game.Game.Level;
 /// return to the menu. Every persistent state is an <see cref="IStateSlot"/>: listed once, it is
 /// saved, loaded, reset on a new game and registered for JSON automatically. A failed save is
 /// logged and shown to the player (<see cref="IsLastSaveFailed"/>). Settings live in a file of
-/// their own, so New Game never resets them.
+/// their own, so New Game never resets them; their window mode, size and language are applied
+/// before any screen is built.
 /// </summary>
 public partial class GameLevel : Node, IGameLevel
 {
@@ -130,6 +131,7 @@ public partial class GameLevel : Node, IGameLevel
     public override void _Ready()
     {
         GameWindow.Apply(GetWindow(), _settingsService);
+        GameLanguage.Apply(_settingsService.GetLanguage());
         AddChild(_settingsUiFactory.CreateDisplayModeHotkey());
 
         _canvasLayer = new CanvasLayer { Layer = 99 };

@@ -23,9 +23,10 @@ The root `Node` of the main scene ([../../../level/game_level.tscn](../../../lev
 - **in the constructor** it creates all of the `Common` infrastructure and the
   modules (repositories, services, factories) — the one and only place the game is
   "assembled";
-- **in `_Ready`** it applies the saved window settings (`GameWindow.Apply`), adds the F11 /
-  Alt+Enter hotkey node, creates the start screens (main menu, quit), subscribes them to
-  level changes and opens `MainMenu`;
+- **in `_Ready`** it applies the saved window settings and language (`GameWindow.Apply`,
+  `GameLanguage.Apply` — before any screen is built, so every text appears in that language),
+  adds the F11 / Alt+Enter hotkey node, creates the start screens (main menu, quit), subscribes
+  them to level changes and opens `MainMenu`;
 - **`ContinueGame()` / `StartNewGame()`** load the save or reset every state slot, then
   build the game screen and open `Main` — so its UIs subscribe to the loaded / fresh
   states; **`ReturnToMenu()`** (Esc) saves, opens `MainMenu` and frees the game screen (it
@@ -84,7 +85,7 @@ lifetimes:
     [Example](../Example/README.md) module's UI via its factory, and **listens to that UI**
     (`IExampleUIObserver`) to handle Save and Menu; Esc does the same as Menu. This is the
     UI → Level direction: the UI reports intent, the level decides. When the save on the way
-    out fails, it asks "Exit without saving?" (Exit without saving → `LeaveToMenu()` / Stay).
+    out fails, it asks "Leave anyway?" (Exit without saving → `LeaveToMenu()` / Stay).
 
 Why the game screen is rebuilt: `SaveService.Load` / `NewGameService.Create` replace the
 state objects. A UI that subscribed in `_Ready` stays subscribed to the objects of *its*
@@ -156,14 +157,15 @@ Godot launches game_level.tscn
 GameLevel (constructor)  → assembles services/modules/factories
         │
         ▼
-GameLevel._Ready()       → creates the menu + quit screens, OpenLevel(MainMenu)
+GameLevel._Ready()       → applies window + language, creates the menu + quit screens,
+                           OpenLevel(MainMenu)
         │
         ▼
 Continue / New Game      → Load() or NewGameService.Create(), build ExampleLevel, OpenLevel(Main)
         │
         ▼
 Esc / Menu               → save ok: OpenLevel(MainMenu), free ExampleLevel
-                           save failed: "Exit without saving?" → LeaveToMenu() or stay
+                           save failed: "Leave anyway?" → LeaveToMenu() or stay
 Window close             → save (failure only logged)
 Menu Quit                → OpenLevel(Quit)
         │

@@ -12,7 +12,8 @@ with plumbing.
 - 🧠 **Engine-free logic.** `Domain`/`Service` don't know Godot — test them without the editor.
 - 🎛️ **UI as code.** Built in C#, not `.tscn` — clean git diffs and real code review.
 - 💾 **Save system ready.** Main menu (Continue / New Game) + JSON saves written safely via a temp file, with a warning when a save fails; a new saved state is one line.
-- 🖥️ **Settings.** Windowed / fullscreen (F11, Alt+Enter) and window resolution, kept in their own file.
+- 🖥️ **Settings.** Windowed / fullscreen (F11, Alt+Enter), window resolution and language, kept in their own file.
+- 🌍 **Localization.** English by default, Russian built in: texts are English in code, translated via `locale/ru.po` and switched at once in Settings; tests catch an empty, duplicate or broken entry and a missing data text.
 - 🤖 **Built for AI agents.** `CLAUDE.md` + [skills](.claude/skills) so features land the same way every time.
 
 ![Main scene — the example module running](screenshots/main.png)
@@ -28,7 +29,8 @@ with plumbing.
 2. The editor imports assets and builds the C# on its own.
 3. F5 — launches the main scene [level/game_level.tscn](level/game_level.tscn):
    the main menu (**Continue / New Game / Settings / Quit**). New Game opens the example screen — an
-   input field and **Random / Save / Menu** buttons; Esc saves and returns to the menu.
+   input field and **Random / Save / Menu** buttons; Esc saves and returns to the menu. Settings →
+   Language switches English / Русский.
 
 Build/test from the console:
 ```bash

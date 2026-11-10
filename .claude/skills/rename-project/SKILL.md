@@ -16,6 +16,10 @@ Steps (current name is `Game`):
 1. **project.godot**
    - `[application] config/name="<Display Name>"`
    - `[dotnet] project/assembly_name="<NewName>"`
+   - The display name is a player-facing text: put it in the menu title too (`Text = "Game"` in
+     `src/Game/MainMenu/UI/MainMenuUI.cs`) and replace `msgid "Game"` in `locale/*.po` with it and
+     its translation (the same name when the title isn't translated). Godot translates the window
+     title by that entry as well; `TranslationTests` fail without it.
 
 2. **Csproj / solution**
    - Rename `Game.csproj` → `<NewName>.csproj` and `Game.sln` → `<NewName>.sln`.

@@ -1,3 +1,4 @@
+using Game.Game.Common.UI;
 using Game.Game.Example.Domain.Observer;
 using Game.Game.Example.Service;
 using Game.Game.Example.UI.Observer;
@@ -18,6 +19,9 @@ namespace Game.Game.Example.UI;
 /// <see cref="ShowSaveResult"/> — the UI holds no navigation or save logic. The field and the
 /// "Current value" label (with the time of the last change) are driven by
 /// <see cref="INoteStateObserver.OnTextChanged"/>.
+///
+/// Texts are English, translated via <c>locale/ru.po</c>: plain control texts by Godot itself,
+/// the label with values through <see cref="Localize.Format"/> (never <c>$"..."</c>).
 ///
 /// Load / New Game live in the main menu: the screen hosting this UI is created after them, so
 /// <see cref="_Ready"/> subscribes to the current state once — no re-subscribing on load.
@@ -72,10 +76,13 @@ public partial class ExampleUI : Control, INoteStateObserver
         _valueLabel = new Label { HorizontalAlignment = HorizontalAlignment.Center };
         box.AddChild(_valueLabel);
 
+        // The right-click menu (Cut, Copy, Paste…) is Godot's own English text, not in ru.po — off;
+        // its keyboard shortcuts (Ctrl+C / Ctrl+V / Ctrl+Z) still work.
         _input = new LineEdit
         {
             PlaceholderText = "Digits only…",
             VirtualKeyboardType = LineEdit.VirtualKeyboardTypeEnum.Number,
+            ContextMenuEnabled = false,
         };
         _input.TextChanged += OnInputChanged; // keep the field numeric
         box.AddChild(_input);
@@ -163,10 +170,12 @@ public partial class ExampleUI : Control, INoteStateObserver
         Render(text, changedAt);
     }
 
+    // Whole sentences with places for the values, so a translation can reorder them.
     private void Render(string text, DateTime? changedAt)
     {
-        var changed = changedAt is { } time ? $"changed at {time:HH:mm:ss}" : "never changed";
-        _valueLabel.Text = $"Current value: {text} ({changed})";
+        _valueLabel.Text = changedAt is { } time
+            ? Localize.Format("Current value: {0} (changed at {1:HH:mm:ss})", text, time)
+            : Localize.Format("Current value: {0} (never changed)", text);
         _input.Text = text; // reflect loaded/changed state in the field
     }
 }

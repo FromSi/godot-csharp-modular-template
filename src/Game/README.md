@@ -11,14 +11,17 @@ Start here, then read the README of a specific layer:
 - [Level/README.md](Level/README.md) — game assembly and screen switching.
 - [Example/README.md](Example/README.md) — a sample feature module.
 - [MainMenu/README.md](MainMenu/README.md) — the start menu (Continue / New Game / Settings / Quit).
-- [Settings/README.md](Settings/README.md) — player settings: display mode and resolution.
+- [Settings/README.md](Settings/README.md) — player settings: display mode, resolution, language.
+
+Every player-facing text is English in code and translated from `locale/` — see
+[Texts and translation](#texts-and-translation).
 
 ## Three roles
 
 Everything splits into three parts with distinct responsibilities:
 
 ```
-Common   — the tools        : storage, ids, randomness, files, serialization
+Common   — the tools        : storage, ids, randomness, files, serialization, translation
 Modules  — the parts        : Example and your future features (one folder each)
 Level    — the assembly shop : creates everything and decides which screen is active
 ```
@@ -43,7 +46,7 @@ src/Game/
   Common/     # foundation: infrastructure not tied to any game
   Level/      # composition root + level screens + cross-module adapters
   MainMenu/   # start menu UI (Continue / New Game / Settings / Quit)
-  Settings/   # player settings: windowed / fullscreen, resolution (own file)
+  Settings/   # player settings: windowed / fullscreen, resolution, language (own file)
   Example/    # a sample feature module (template to copy)
   <YourFeature>/   # your modules go here
 ```
@@ -139,8 +142,48 @@ Details — [Level/README.md](Level/README.md).
    saved, add a `StateSlot<T>` for it to the `slots` list (that's all persistence needs).
 4. Host its UI in the game screen (following `ExampleLevel`).
 5. Need another module's data? Interface in your `Service` + adapter in `Level/Adapter/`.
-6. Cover the `Service` with tests (it doesn't depend on Godot) — see
+6. Write its texts in English and add each to [locale/ru.po](../../locale/ru.po) — see
+   [Texts and translation](#texts-and-translation).
+7. Cover the `Service` with tests (it doesn't depend on Godot) — see
    [tests/Game.Tests](../../tests/Game.Tests).
+
+## Texts and translation
+
+Every player-facing text is written in **English in code** and translated by Godot from
+[locale/ru.po](../../locale/ru.po) (msgid = the English text, msgstr = Russian; registered in
+`project.godot`). English is the default language, Russian the second; the player picks one in
+[Settings](Settings/README.md), and `GameLevel` applies the saved one before building any screen.
+- A plain text on a control is translated by Godot itself, and again on a language switch:
+  `Text`, `TooltipText`, `PlaceholderText`, a dialog's `Title` / `DialogText` / button texts,
+  `OptionButton` items. So is a data text shown as is (a display mode's name).
+- A text with values: `Localize.Format("Current value: {0}", value)` — never `$"..."` or `+` (an
+  interpolated string is a new msgid for every value). One whole sentence per template, so a
+  translation can move the values. Write counts as `Items: {0}`, not `{0} items` — no plural forms
+  to keep. A text kept outside a control: `Localize.Text("...")`. Helpers —
+  [Localize](Common/UI/Localize.cs).
+- A `Localize` text is translated once, when it is built; Godot re-translates only plain control
+  texts. The language is switched in the main menu, where no game screen exists, so game UIs build
+  their texts in the current language. A UI that stays on screen through a switch must rebuild its
+  `Localize` texts on `NotificationTranslationChanged`.
+- `Domain` / `Service` stay engine-free and return English; only `UI` translates.
+- Keep English short: Russian is ~25% longer and must fit the same place.
+- Every visible text must read in the player's language — also generated ones: build them from
+  texts that are in `ru.po` (a random name is picked from a list of translated words), never make
+  up an English string that `ru.po` can't contain. The game's title too: the menu's `Game` and
+  `config/name` (the window title, which Godot re-translates on a switch as well). As they are stay
+  only a language's own name (English, Русский) and texts without words (`1920 × 1080 (16:9)`);
+  logs (`GD.PushError`) are not for the player and stay English.
+- Godot's own texts are English and not in `ru.po`: the right-click menu of a `LineEdit` /
+  `TextEdit` (Cut, Copy, Paste, Undo… and technical submenus). Turn it off —
+  `ContextMenuEnabled = false`, the Ctrl+C / Ctrl+V / Ctrl+Z shortcuts still work — or, if the
+  field needs it, add its texts to `ru.po` (Godot translates them by the same msgids).
+- No tautology: don't repeat a word or idea within one text, or between texts shown together (a
+  title and its body, a dialog and its buttons) — in English and in Russian.
+- Add every new text to `ru.po` (to every `locale/*.po`) under its module's comment, one line per
+  msgid / msgstr. [TranslationTests](../../tests/Game.Tests/Locale/TranslationTests.cs) fail on an
+  empty translation, a duplicate, a lost or broken `{0}`, a missing data text (list new data texts
+  there) and on translations with different texts. A new language — the
+  [add-language](../../.claude/skills/add-language/SKILL.md) skill.
 
 ## Principles worth keeping
 
@@ -149,3 +192,4 @@ Details — [Level/README.md](Level/README.md).
 - **Depend on `Common` interfaces, not implementations** — that keeps code testable.
 - **All wiring lives only in `Level`.** Modules don't create or reference each other.
 - **Entities have ids; references are ids + snapshots.**
+- **Texts are English in code; every one the player sees is translated.**

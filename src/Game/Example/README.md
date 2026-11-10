@@ -22,13 +22,16 @@ The game screen opened by the main menu's Continue / New Game: an input field an
 - **Save** — commits the field's value to the note and asks the level to save
   (`GameLevel.SaveGame()`); the status line shows "Saved" or a red "Could not save the game";
 - **Menu** (or Esc) — raises a UI intent to the level (see below), which saves and returns
-  to the main menu; if the save fails, it asks "Exit without saving?".
+  to the main menu; if the save fails, it warns that the progress will be lost and asks
+  "Leave anyway?".
 
 Load and New Game are not here — they are the menu's Continue / New Game, done *before* this
 screen is built (see [../Level/README.md](../Level/README.md)).
 
 The field is kept numeric (non-digits are stripped on input — `LineEdit` has no built-in
-numeric-only mode; `SpinBox` is the out-of-the-box alternative). All controls sit in a
+numeric-only mode; `SpinBox` is the out-of-the-box alternative). Its right-click menu is off:
+those are Godot's own English texts (see [Texts and translation](../README.md#texts-and-translation));
+Ctrl+C / Ctrl+V / Ctrl+Z still work. All controls sit in a
 `VBoxContainer` inside a `CenterContainer`, so the column stays centered at any resolution.
 
 It shows the observer pattern in **both directions**:
@@ -46,6 +49,11 @@ owns the in-memory note.
 
 `ExampleUI` subscribes once in `_Ready` (and renders the current value), unsubscribes in
 `_ExitTree`; the "Current value" label then changes only through `OnTextChanged`.
+
+Texts: the buttons, the placeholder and the status line are plain control texts; the "Current
+value" label carries values — `Localize.Format("Current value: {0} (changed at {1:HH:mm:ss})", …)`.
+Their translations are the `# Example` section of [locale/ru.po](../../../locale/ru.po); a module
+copied from this one adds its own. How it works — [Texts and translation](../README.md#texts-and-translation).
 
 ## Module files
 

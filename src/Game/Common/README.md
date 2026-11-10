@@ -1,8 +1,8 @@
 # Common — reusable infrastructure
 
 The foundation of the project: generic, game-agnostic building blocks that feature
-modules are built on — state storage, id generation, random numbers, file handling
-and serialization.
+modules are built on — state storage, id generation, random numbers, file handling,
+serialization and text translation.
 
 > How `Common` relates to modules and `Level`, and why dependencies point at it —
 > see [../README.md](../README.md). This document covers only the contents of `Common`.
@@ -38,13 +38,19 @@ Common/
     NewGameService.cs     #   reset all slots to a fresh game
     FileHandler/          #   reading/writing files (low-level)
     JsonConverter/        #   serializing states to JSON
-  UI/                     # shared Godot widgets (UI layer), created on first need
+  UI/                     # shared Godot code for UIs (UI layer)
+    Localize.cs           #   translate texts (plain / with values)
 ```
 
 ## UI — shared widgets (`UI/`)
 
-Godot widgets reused by several module UIs live here (the folder is empty in the template). It is a UI layer: Godot API is
-allowed, game logic is not, and only `UI` code and `Level` screens may use it.
+Godot code reused by several module UIs lives here. It is a UI layer: Godot API is allowed, game
+logic is not, and only `UI` code and `Level` screens may use it.
+
+- **[UI/Localize.cs](UI/Localize.cs)** — `Text(text)` / `Format(template, values…)` translate an
+  English text by `locale/*.po` (string values too, and a list "A, B" item by item; numbers and
+  dates are formatted invariantly). For texts with values and outside controls; a control's plain
+  `Text` is translated by Godot itself. See [Texts and translation](../README.md#texts-and-translation).
 
 Move a widget here once a second module needs it; until then keep it in the module's `UI`.
 

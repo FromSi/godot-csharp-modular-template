@@ -49,6 +49,7 @@ public class JsonConverterStateServiceTests
             DisplayMode = DisplayMode.Fullscreen,
             WindowWidth = 1920,
             WindowHeight = 1080,
+            LanguageCode = "ru",
         };
 
         var loaded = (SettingsState)_converter.Deserialize(_converter.Serialize([settings]))[0]!;
@@ -56,6 +57,19 @@ public class JsonConverterStateServiceTests
         Assert.That(loaded.DisplayMode, Is.EqualTo(DisplayMode.Fullscreen));
         Assert.That(loaded.WindowWidth, Is.EqualTo(1920));
         Assert.That(loaded.WindowHeight, Is.EqualTo(1080));
+        Assert.That(loaded.LanguageCode, Is.EqualTo("ru"));
+    }
+
+    // A settings file written before the language setting existed loads with the default, English.
+    [Test]
+    public void Settings_WithoutALanguage_LoadAsEnglish()
+    {
+        var json = "[{\"_cls\": \"SettingsState\", \"_obj\": {\"displayMode\": 1}}]";
+
+        var loaded = (SettingsState)_converter.Deserialize(json)[0]!;
+
+        Assert.That(loaded.DisplayMode, Is.EqualTo(DisplayMode.Fullscreen));
+        Assert.That(loaded.LanguageCode, Is.EqualTo("en"));
     }
 
     // A truncated or malformed file reads as "no states", so a load is refused instead of crashing.

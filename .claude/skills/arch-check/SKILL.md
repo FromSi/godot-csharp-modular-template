@@ -48,7 +48,19 @@ Checklist:
 8. **Tests** — engine-free `Service`/`Domain`/`Level` classes have tests; `Common` deps are mocked;
    mutable test fields are assigned in `[SetUp]`, not inline.
 
-9. **Style** — 4 spaces (no tabs), ≤120 chars, no trailing whitespace, braces on all blocks
+9. **Texts** (see "Texts and translation" in [src/Game/README.md](../../../src/Game/README.md)) —
+   every player-facing text is English in code and has an entry in `locale/ru.po` (and every other
+   `locale/*.po`); a text with values goes through `Localize.Format` with a whole-sentence template,
+   no `$"..."` / `+` / `string.Format` for what the player sees; `Domain`/`Service` return English and
+   never translate (no `TranslationServer` / `Tr` / `Localize` outside `UI` and `Level` screens); data
+   texts shown as is are in `TranslationTests.EveryDataTextIsTranslated`; nothing generated from
+   untranslated words; no tautology within a text or between texts shown together; every
+   `LineEdit` / `TextEdit` has `ContextMenuEnabled = false` (its menu is Godot's English) unless
+   its menu texts are in `ru.po`. Exceptions: a
+   language's own name (never in `ru.po`), texts without words (`1920 × 1080 (16:9)`, may use
+   `$"..."`), logs (English).
+
+10. **Style** — 4 spaces (no tabs), ≤120 chars, no trailing whitespace, braces on all blocks
    (except short `?:`), ≤3 nesting levels, `using` order project (`Game.*`) → BCL (`System.*`) →
    third-party (`Godot`, `Moq`, `NUnit`). The `verify` skill has the line-length/whitespace commands.
 

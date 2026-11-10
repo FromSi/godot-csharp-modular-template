@@ -18,7 +18,10 @@ Ask for the feature name (PascalCase, e.g. `Inventory`) if not given. Then:
      ("Order #12") is a separate field, not the id.
    - `Service/` — `I<Feature>Service.cs` (contract) + `<Feature>Service.cs` (logic, engine-free), depends on repository interfaces from `Common`.
      Time via `IClockService`, randomness via `IRandomGeneratorService`.
-   - `UI/<Feature>UI.cs` — Godot `Control`/node, builds UI in code, only calls the service.
+   - `UI/<Feature>UI.cs` — Godot `Control`/node, builds UI in code, only calls the service. Texts
+     in English: plain ones straight on the controls, ones with values via `Localize.Format("Score: {0}", score)`
+     (`Game.Game.Common.UI`), never `$"..."`. The service returns English and never translates.
+     A `LineEdit` / `TextEdit` gets `ContextMenuEnabled = false` (its right-click menu is Godot's English).
    - `UI/Factory/<Feature>UIFactory.cs` — creates the UI with injected dependencies.
    - Add `Enum/` or `Observer/` only if actually needed.
 
@@ -36,10 +39,17 @@ Ask for the feature name (PascalCase, e.g. `Inventory`) if not given. Then:
 
 6. **Show it** — game content lives in the game screen built by `GameLevel.EnterGame()` (so it subscribes after Load / New Game); a standalone screen — use the `add-screen` skill.
 
-7. **Tests** — add `tests/Game.Tests/<Feature>/Service/<Feature>ServiceTests.cs`, mirroring the folder path, mocking `Common` interfaces and the consumer-side interfaces (see `add-tests`); add a persistable state to `JsonConverterStateServiceTests`.
+7. **Texts** — add every text the module shows to [locale/ru.po](../../../locale/ru.po) under a
+   `# <Feature>` comment (one line per msgid / msgstr, `{0}` kept); texts its data shows as is
+   (a seed's names) also go to `EveryDataTextIsTranslated` in
+   [TranslationTests](../../../tests/Game.Tests/Locale/TranslationTests.cs). Generated texts are
+   built from translated words only. See "Texts and translation" in [src/Game/README.md](../../../src/Game/README.md).
 
-8. **Docs** — add `src/Game/<Feature>/README.md` (use `module-docs`).
+8. **Tests** — add `tests/Game.Tests/<Feature>/Service/<Feature>ServiceTests.cs`, mirroring the folder path, mocking `Common` interfaces and the consumer-side interfaces (see `add-tests`); add a persistable state to `JsonConverterStateServiceTests`.
 
-9. **Verify** — run the `verify` skill (0 warnings, green tests).
+9. **Docs** — add `src/Game/<Feature>/README.md` (use `module-docs`).
+
+10. **Verify** — run the `verify` skill (0 warnings, green tests), then `run-godot` in Russian too
+    (the texts must fit).
 
 Keep layer boundaries: UI → Service → Domain/Common. No Godot in Domain/Service/Repository. No `virtual` (use `abstract`/interface).

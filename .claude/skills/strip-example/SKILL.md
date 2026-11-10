@@ -21,7 +21,7 @@ Steps:
    - a minimal placeholder `src/Game/Level/GameScreenLevel.cs`: a `Control, ILevelObserver`
      with a centered `Label`, `Visible = newLevel == Enum.Level.Main`, Esc → `ReturnToMenu()` in
      `_Input` (keep `GetViewport().SetInputAsHandled()`), `ShowSaveResult(bool)` and the
-     "Exit without saving?" dialog — copy those three from `ExampleLevel` before deleting it.
+     "Leave anyway?" dialog — copy those three from `ExampleLevel` before deleting it.
    Delete `ExampleLevel.cs` and change the `_gameScreen` field type / `EnterGame()` accordingly.
 
 3. **Unwire from [GameLevel](../../../src/Game/Level/GameLevel.cs)**:
@@ -36,19 +36,27 @@ Steps:
    `SettingsState`); in `Serialize_SkipsUnregisteredTypes` and `BrokenJson_ReadsAsNoStates` use
    `SettingsState` instead of `NoteState`.
 
-5. **Docs** — remove/replace mentions of `Example`, `NoteState`, `NoteService`, `ExampleUI`,
+5. **Texts** — drop the `# Example` section of [locale/ru.po](../../../locale/ru.po) (the texts only
+   `ExampleUI` showed), but keep what the new game screen still shows: the
+   `# Game screen: leaving after a failed save` section with the "Leave anyway?" dialog and
+   "Could not save the game" (the menu uses it too). Move `Saved` from the `# Example` section to
+   the game screen's one if it copies `ShowSaveResult`, and add the placeholder `Label`'s text (or
+   the new module's texts) — nothing checks that a text in code is in `ru.po`.
+   [TranslationTests](../../../tests/Game.Tests/Locale/TranslationTests.cs) need no change.
+
+6. **Docs** — remove/replace mentions of `Example`, `NoteState`, `NoteService`, `ExampleUI`,
    `ExampleLevel` in root [README.md](../../../README.md) (incl. the screenshot caption),
    [CLAUDE.md](../../../CLAUDE.md) (the namespace example), [src/Game/README.md](../../../src/Game/README.md),
    [Common/README.md](../../../src/Game/Common/README.md) (Observer live example) and
    [Level/README.md](../../../src/Game/Level/README.md) (game screen, control flow).
 
-6. **Update links in the skills.** The skills describe patterns with inline snippets, but some
+7. **Update links in the skills.** The skills describe patterns with inline snippets, but some
    still name Example files as optional references. Find them:
    ```bash
-   grep -rnE 'Example|NoteState|NoteService|ExampleUI|ExampleLevel' .claude/skills CLAUDE.md README.md src tests
+   grep -rnE 'Example|NoteState|NoteService|ExampleUI|ExampleLevel' .claude/skills CLAUDE.md README.md src tests locale
    ```
    Point each hit at the replacement module/screen, or drop the reference — no link may lead
    to a deleted file. (This skill itself may keep its own mentions.)
 
-7. Run the `verify` skill (0 warnings, green tests, clean style checks), then `run-godot`
+8. Run the `verify` skill (0 warnings, green tests, clean style checks), then `run-godot`
    to confirm menu → New Game → game screen → Esc → menu → Continue.
